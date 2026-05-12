@@ -3425,3 +3425,57 @@ input[type="range"].is-scrubbing::-moz-range-thumb {
         height: 38px;
     }
 }
+
+/* iPhone safe-area polish: keep controls clear of the status bar and home indicator. */
+@media (max-width: 720px) {
+    :root {
+        --phone-top-safe: max(var(--safe-top), 18px);
+        --phone-bottom-safe: max(var(--safe-bottom), 8px);
+    }
+
+    body {
+        padding-top: 0;
+        padding-bottom: calc(var(--mobile-nav-height) + var(--phone-bottom-safe) + 92px);
+    }
+
+    .navbar,
+    .navbar.scrolled {
+        top: 0;
+        min-height: calc(58px + var(--phone-top-safe));
+        padding: calc(10px + var(--phone-top-safe)) 14px 9px;
+        background: rgba(var(--card-bg-rgb), 0.88);
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        border-bottom: 1px solid rgba(var(--text-primary-rgb), 0.06);
+    }
+
+    .nav-brand,
+    .nav-right .sidebar-toggle-btn {
+        position: relative;
+        z-index: 1;
+    }
+
+    .nav-right .sidebar-toggle-btn {
+        width: 40px;
+        height: 40px;
+    }
+
+    .app-container {
+        padding-top: 18px;
+        padding-bottom: calc(var(--mobile-nav-height) + var(--phone-bottom-safe) + 104px);
+    }
+
+    .mobile-bottom-nav {
+        height: calc(var(--mobile-nav-height) + var(--phone-bottom-safe));
+        padding-bottom: calc(7px + var(--phone-bottom-safe));
+    }
+
+    .audio-player {
+        bottom: calc(var(--mobile-nav-height) + var(--phone-bottom-safe) + 6px) !important;
+    }
+
+    .now-playing-content {
+        padding-top: calc(12px + var(--phone-top-safe));
+        padding-bottom: calc(16px + var(--phone-bottom-safe));
+    }
+}
