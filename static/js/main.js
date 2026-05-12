@@ -112,6 +112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         "'": '&#39;'
     }[char]));
     const getThumb = (item) => item.thumbnail || `https://img.youtube.com/vi/${item.id}/hqdefault.jpg`;
+    const getLargeThumb = (item) => getThumb(item).replace(/\/(default|mqdefault|hqdefault|sddefault)\.(jpg|webp)(\?.*)?$/i, '/maxresdefault.$2$3');
     const getTrackSubtitle = (track) => `${track.duration || '0:00'} • YouTube`;
     const isAutoplayEnabled = () => localStorage.getItem('autoPlay') !== 'false';
     const isVisible = (el) => Boolean(el && el.getClientRects().length);
@@ -753,14 +754,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    function setArtwork(target, track, radius = '12px') {
+    function setArtwork(target, track, radius = '12px', highRes = false) {
         if (!target) return;
         if (!track) {
             target.innerHTML = '<ion-icon name="musical-note"></ion-icon>';
             return;
         }
-        const thumb = getThumb(track);
-        target.innerHTML = `<img src="${escapeHtml(thumb)}" alt="" style="border-radius: ${radius};">`;
+        const thumb = highRes ? getLargeThumb(track) : getThumb(track);
+        const fallback = getThumb(track);
+        const fallbackHandler = highRes ? ` onerror="this.onerror=null; this.src='${escapeHtml(fallback)}';"` : '';
+        target.innerHTML = `<img src="${escapeHtml(thumb)}" alt="" style="border-radius: ${radius};"${fallbackHandler}>`;
     }
 
     function resetPlayerDisplay() {
@@ -801,14 +804,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateQueuePosition();
         updateMiniTitleMotion();
         setArtwork(document.getElementById('playerArtwork'), track, '12px');
-        setArtwork(largeArtwork, track, '24px');
+        setArtwork(largeArtwork, track, '24px', true);
         
         if (nowPlayingBg) {
             const hash = title.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0);
             const hue = Math.abs(hash % 360);
-            nowPlayingBg.style.background = `radial-gradient(circle at 20% 30%, hsl(${hue}, 80%, 40%), transparent),
-                                             radial-gradient(circle at 80% 70%, hsl(${(hue+120)%360}, 80%, 30%), transparent),
-                                             hsl(${(hue+240)%360}, 40%, 10%)`;
+            nowPlayingBg.style.setProperty('--player-hue', hue);
+            nowPlayingBg.style.setProperty('--player-hue-two', (hue + 120) % 360);
+            nowPlayingBg.style.setProperty('--player-hue-three', (hue + 240) % 360);
         }
     }
 
