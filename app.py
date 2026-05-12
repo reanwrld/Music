@@ -12,6 +12,8 @@ import os
 import shutil
 import json
 import re
+import urllib.parse
+import urllib.request
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -30,6 +32,8 @@ current_progress = {"percent": 0, "status": "idle", "filename": "", "message": "
 USERS_FILE = "users.json"
 HISTORY_FILE = "history.json"
 AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 180
+LYRICS_CACHE = {}
+LRC_TIMESTAMP_RE = re.compile(r"\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]")
 
 def set_auth_cookie(response: Response, value: str):
     response.set_cookie(
@@ -303,6 +307,7 @@ def download_video(url, output_path, user_email, quality="320", audio_format="mp
             meta = {
                 "id": info.get('id', str(datetime.now().timestamp())),
                 "title": title,
+                "artist": info.get("artist") or info.get("uploader") or info.get("channel") or "",
                 "duration": duration,
                 "filename": filename,
                 "thumbnail": info.get('thumbnail') or f"https://i.ytimg.com/vi/{info.get('id')}/hqdefault.jpg",
@@ -321,6 +326,93 @@ def download_video(url, output_path, user_email, quality="320", audio_format="mp
     except Exception as e:
         current_progress['status'] = 'error'
         current_progress['message'] = f"Error: {str(e)}"
+
+def clean_lyrics_query(title, artist=""):
+    title = (title or "").strip()
+    artist = (artist or "").strip()
+    title = re.sub(r"\s+", " ", title)
+    artist = re.sub(r"\s+", " ", artist)
+
+    if not artist:
+        parts = re.split(r"\s[-–—]\s", title, maxsplit=1)
+        if len(parts) == 2:
+            artist, title = parts[0].strip(), parts[1].strip()
+
+    title = re.sub(r"[\(\[][^\)\]]*(official|video|audio|lyrics|lyric|visualizer|clean|explicit|sped up|slowed|remix)[^\)\]]*[\)\]]", "", title, flags=re.I)
+    title = re.sub(r"\s+", " ", title).strip(" -–—")
+    return title, artist
+
+def parse_synced_lyrics(lrc_text):
+    lines = []
+    for raw_line in (lrc_text or "").splitlines():
+        matches = list(LRC_TIMESTAMP_RE.finditer(raw_line))
+        text = LRC_TIMESTAMP_RE.sub("", raw_line).strip()
+        if not matches or not text:
+            continue
+        for match in matches:
+            minutes = int(match.group(1))
+            seconds = int(match.group(2))
+            fraction = match.group(3) or "0"
+            time_value = (minutes * 60) + seconds + (int(fraction.ljust(3, "0")[:3]) / 1000)
+            lines.append({"time": round(time_value, 3), "text": text})
+    return sorted(lines, key=lambda item: item["time"])
+
+def parse_plain_lyrics(plain_text):
+    return [
+        {"time": None, "text": line.strip()}
+        for line in (plain_text or "").splitlines()
+        if line.strip()
+    ]
+
+def fetch_lyrics_payload(title, artist="", duration=None):
+    clean_title, clean_artist = clean_lyrics_query(title, artist)
+    if not clean_title:
+        return {"status": "missing", "lines": [], "message": "No title to search."}
+
+    cache_key = f"{clean_title.lower()}|{clean_artist.lower()}|{duration or ''}"
+    if cache_key in LYRICS_CACHE:
+        return LYRICS_CACHE[cache_key]
+
+    params = {"track_name": clean_title}
+    if clean_artist:
+        params["artist_name"] = clean_artist
+    if duration:
+        params["duration"] = str(duration)
+
+    url = "https://lrclib.net/api/search?" + urllib.parse.urlencode(params)
+    request = urllib.request.Request(url, headers={"User-Agent": "MusicWorld/1.0"})
+
+    try:
+        with urllib.request.urlopen(request, timeout=8) as response:
+            results = json.loads(response.read().decode("utf-8"))
+    except Exception as exc:
+        return {"status": "error", "lines": [], "message": f"Lyrics lookup failed: {exc}"}
+
+    if not isinstance(results, list) or not results:
+        payload = {"status": "missing", "lines": [], "message": "Lyrics not found for this song."}
+        LYRICS_CACHE[cache_key] = payload
+        return payload
+
+    best = next((item for item in results if item.get("syncedLyrics")), None) or next((item for item in results if item.get("plainLyrics")), None)
+    if not best:
+        payload = {"status": "missing", "lines": [], "message": "Lyrics not found for this song."}
+        LYRICS_CACHE[cache_key] = payload
+        return payload
+
+    synced = bool(best.get("syncedLyrics"))
+    lines = parse_synced_lyrics(best.get("syncedLyrics")) if synced else parse_plain_lyrics(best.get("plainLyrics"))
+    payload = {
+        "status": "ok" if lines else "missing",
+        "synced": synced,
+        "instrumental": bool(best.get("instrumental")),
+        "track": best.get("trackName") or clean_title,
+        "artist": best.get("artistName") or clean_artist,
+        "source": "LRCLIB",
+        "lines": lines[:160],
+        "message": "Lyrics loaded." if lines else "Lyrics not found for this song."
+    }
+    LYRICS_CACHE[cache_key] = payload
+    return payload
 
 # --- Routes ---
 @app.get("/", response_class=HTMLResponse)
@@ -415,6 +507,12 @@ async def search_youtube(q: str):
     except Exception as e:
         print(f"🚨 SEARCH ERROR: {e}")
         return []
+
+@app.get("/lyrics")
+async def get_lyrics(title: str, artist: str = "", duration: int = 0, user_email: str = Depends(get_current_user)):
+    if not title.strip():
+        return {"status": "missing", "lines": [], "message": "No title to search."}
+    return await asyncio.to_thread(fetch_lyrics_payload, title, artist, duration or None)
 
 @app.get("/stream/{filename}")
 async def stream_audio(filename: str, user_email: str = Depends(get_current_user)):

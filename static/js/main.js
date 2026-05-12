@@ -12,7 +12,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     let lastProgressRender = 0;
     let suggestionRenderToken = 0;
     let queuePointerStart = null;
+    let currentLyrics = [];
+    let currentLyricIndex = -1;
     const resolvedSuggestionCache = new Map();
+    const lyricsCache = new Map();
 
     // --- DOM Selection ---
     const elements = {
@@ -97,6 +100,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const largeCurrentTime = document.getElementById('largeCurrentTime');
     const largeTotalTime = document.getElementById('largeTotalTime');
     const largeQueueMeta = document.getElementById('largeQueueMeta');
+    const largeLyricsBtn = document.getElementById('largeLyricsBtn');
+    const largeLyricsIcon = document.getElementById('largeLyricsIcon');
+    const largeLyricsPanel = document.getElementById('largeLyricsPanel');
     const largeQueueBtn = document.getElementById('largeQueueBtn');
     const largeQueueIcon = document.getElementById('largeQueueIcon');
     const largeQueuePanel = document.getElementById('largeQueuePanel');
@@ -115,6 +121,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     const getThumb = (item) => item.thumbnail || `https://img.youtube.com/vi/${item.id}/hqdefault.jpg`;
     const getLargeThumb = (item) => getThumb(item).replace(/\/(default|mqdefault|hqdefault|sddefault)\.(jpg|webp)(\?.*)?$/i, '/maxresdefault.$2$3');
     const getTrackSubtitle = (track) => `${track.duration || '0:00'} • YouTube`;
+    const parseDurationSeconds = (value = '') => {
+        const parts = String(value).split(':').map(part => Number(part));
+        if (!parts.length || parts.some(Number.isNaN)) return 0;
+        return parts.reduce((total, part) => (total * 60) + part, 0);
+    };
+    const getLyricsQuery = (track = {}) => {
+        let title = track.title || '';
+        let artist = track.artist || '';
+        const split = title.match(/^(.+?)\s[-–—]\s(.+)$/);
+        if (!artist && split) {
+            artist = split[1].trim();
+            title = split[2].trim();
+        }
+        title = title.replace(/[\(\[][^\)\]]*(official|video|audio|lyrics|lyric|visualizer|clean|explicit|sped up|slowed|remix)[^\)\]]*[\)\]]/gi, '').replace(/\s+/g, ' ').trim();
+        return { title, artist, duration: parseDurationSeconds(track.duration) };
+    };
     const isAutoplayEnabled = () => localStorage.getItem('autoPlay') !== 'false';
     const isVisible = (el) => Boolean(el && el.getClientRects().length);
     const suggestionPool = [
@@ -685,6 +707,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function setLargeQueueOpen(isOpen) {
         if (!largeQueuePanel || !largeQueueBtn || !nowPlayingOverlay) return;
+        if (isOpen) setLargeLyricsOpen(false);
         largeQueuePanel.classList.toggle('hidden', !isOpen);
         nowPlayingOverlay.classList.toggle('is-queue-open', isOpen);
         largeQueueBtn.classList.toggle('is-active', isOpen);
@@ -697,6 +720,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const active = largeQueuePanel.querySelector('.large-queue-item.is-active');
                 active?.scrollIntoView({ block: 'nearest' });
             });
+        }
+    }
+
+    function setLargeLyricsOpen(isOpen) {
+        if (!largeLyricsPanel || !largeLyricsBtn || !nowPlayingOverlay) return;
+        if (isOpen) setLargeQueueOpen(false);
+        largeLyricsPanel.classList.toggle('hidden', !isOpen);
+        nowPlayingOverlay.classList.toggle('is-lyrics-open', isOpen);
+        largeLyricsBtn.classList.toggle('is-active', isOpen);
+        largeLyricsBtn.setAttribute('aria-expanded', String(isOpen));
+        largeLyricsBtn.setAttribute('aria-label', isOpen ? 'Hide lyrics' : 'Show lyrics');
+        if (largeLyricsIcon) largeLyricsIcon.setAttribute('name', isOpen ? 'chatbubble' : 'chatbubble-ellipses-outline');
+        if (nowPlayingTitle) nowPlayingTitle.textContent = isOpen ? 'Lyrics' : 'Now Playing';
+
+        if (isOpen) {
+            const track = currentPlaylist[currentTrackIndex];
+            loadLyricsForTrack(track);
         }
     }
 
@@ -736,6 +776,113 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
             <div class="large-queue-list">${rows}</div>
         `;
+    }
+
+    function renderLyricsShell(state, track, message = '') {
+        if (!largeLyricsPanel) return;
+        const title = track?.title || 'Not Playing';
+        largeLyricsPanel.innerHTML = `
+            <div class="lyrics-panel-header">
+                <span>Lyrics</span>
+                <small>${escapeHtml(title)}</small>
+            </div>
+            <div class="lyrics-empty">
+                <ion-icon name="${state === 'loading' ? 'sync-outline' : 'musical-notes-outline'}"></ion-icon>
+                <strong>${state === 'loading' ? 'Finding lyrics...' : 'Lyrics not available'}</strong>
+                <span>${escapeHtml(message || 'Try another track or check back later.')}</span>
+            </div>
+        `;
+    }
+
+    function prepareLyricLines(lines = [], duration = 0) {
+        const clean = lines
+            .map(line => ({ time: typeof line.time === 'number' ? line.time : null, text: String(line.text || '').trim() }))
+            .filter(line => line.text);
+
+        if (!clean.length) return [];
+        if (clean.every(line => line.time === null) && duration > 0) {
+            const step = duration / Math.max(clean.length, 1);
+            return clean.map((line, index) => ({ ...line, time: Math.max(0, index * step) }));
+        }
+        return clean.map((line, index) => ({ ...line, time: line.time ?? index * 4 }));
+    }
+
+    function renderLyrics(track, payload) {
+        if (!largeLyricsPanel) return;
+        const query = getLyricsQuery(track);
+        currentLyrics = prepareLyricLines(payload.lines, query.duration || elements.player.audio.duration || 0);
+        currentLyricIndex = -1;
+
+        if (!currentLyrics.length) {
+            renderLyricsShell('missing', track, payload.message);
+            return;
+        }
+
+        const source = payload.source ? `Synced by ${payload.source}` : 'Lyrics';
+        largeLyricsPanel.innerHTML = `
+            <div class="lyrics-panel-header">
+                <span>${escapeHtml(payload.track || query.title || 'Lyrics')}</span>
+                <small>${escapeHtml(payload.artist || query.artist || source)}</small>
+            </div>
+            <div class="lyrics-lines">
+                ${currentLyrics.map((line, index) => `
+                    <div class="lyric-line" data-lyric-index="${index}">${escapeHtml(line.text)}</div>
+                `).join('')}
+            </div>
+        `;
+        updateLyricsPosition(true);
+    }
+
+    async function loadLyricsForTrack(track) {
+        if (!track) {
+            currentLyrics = [];
+            currentLyricIndex = -1;
+            renderLyricsShell('missing', null, 'Play a track to see lyrics.');
+            return;
+        }
+
+        const query = getLyricsQuery(track);
+        const key = `${track.id || track.filename || query.title}|${query.artist}|${query.duration}`;
+        if (lyricsCache.has(key)) {
+            renderLyrics(track, lyricsCache.get(key));
+            return;
+        }
+
+        renderLyricsShell('loading', track);
+        try {
+            const params = new URLSearchParams({
+                title: query.title || track.title || '',
+                artist: query.artist || '',
+                duration: String(query.duration || 0)
+            });
+            const response = await fetch(`/lyrics?${params.toString()}`);
+            const payload = response.ok ? await response.json() : { status: 'error', lines: [], message: 'Lyrics lookup failed.' };
+            lyricsCache.set(key, payload);
+            renderLyrics(track, payload);
+        } catch {
+            renderLyricsShell('missing', track, 'Lyrics lookup failed.');
+        }
+    }
+
+    function updateLyricsPosition(force = false) {
+        if (!largeLyricsPanel || largeLyricsPanel.classList.contains('hidden') || !currentLyrics.length) return;
+
+        const now = elements.player.audio.currentTime || 0;
+        let activeIndex = 0;
+        for (let i = 0; i < currentLyrics.length; i += 1) {
+            if ((currentLyrics[i].time || 0) <= now + 0.2) activeIndex = i;
+            else break;
+        }
+
+        if (!force && activeIndex === currentLyricIndex) return;
+        currentLyricIndex = activeIndex;
+        const nodes = largeLyricsPanel.querySelectorAll('.lyric-line');
+        nodes.forEach((node, index) => {
+            node.classList.toggle('is-past', index < activeIndex);
+            node.classList.toggle('is-current', index === activeIndex);
+            node.classList.toggle('is-upcoming', index > activeIndex);
+        });
+        nodes[activeIndex]?.scrollIntoView({ block: 'center', behavior: force ? 'auto' : 'smooth' });
     }
 
     function updateMiniTitleMotion() {
@@ -790,6 +937,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (largeSeekbar) { largeSeekbar.value = 0; updateSliderTrack(largeSeekbar); }
         setArtwork(document.getElementById('playerArtwork'), null);
         setArtwork(largeArtwork, null);
+        currentLyrics = [];
+        currentLyricIndex = -1;
+        if (largeLyricsPanel && !largeLyricsPanel.classList.contains('hidden')) {
+            renderLyricsShell('missing', null, 'Play a track to see lyrics.');
+        }
         updateQueuePosition();
         updateMiniTitleMotion();
     }
@@ -812,6 +964,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateMiniTitleMotion();
         setArtwork(document.getElementById('playerArtwork'), track, '12px');
         setArtwork(largeArtwork, track, '24px', true);
+        if (largeLyricsPanel && !largeLyricsPanel.classList.contains('hidden')) {
+            loadLyricsForTrack(track);
+        }
         
         if (nowPlayingBg) {
             const hash = title.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a; }, 0);
@@ -921,6 +1076,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             el.value = pct;
             if (isVisible(el)) updateSliderTrack(el);
         });
+        updateLyricsPosition();
     }
 
     function startProgressLoop() {
@@ -1070,8 +1226,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 setLargeQueueOpen(false);
                 return;
             }
+            if (largeLyricsPanel && !largeLyricsPanel.classList.contains('hidden')) {
+                setLargeLyricsOpen(false);
+                return;
+            }
             if (nowPlayingOverlay) nowPlayingOverlay.classList.add('hidden');
             setLargeQueueOpen(false);
+            setLargeLyricsOpen(false);
             document.body.style.overflow = '';
         });
     }
@@ -1081,6 +1242,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.stopPropagation();
             renderLargeQueue();
             setLargeQueueOpen(largeQueuePanel ? largeQueuePanel.classList.contains('hidden') : false);
+        });
+    }
+
+    if (largeLyricsBtn) {
+        largeLyricsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            setLargeLyricsOpen(largeLyricsPanel ? largeLyricsPanel.classList.contains('hidden') : false);
         });
     }
 
