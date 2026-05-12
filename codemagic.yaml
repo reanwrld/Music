@@ -41,9 +41,16 @@ workflows:
             exit 1
           fi
 
+          EXECUTABLE=$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$APP_PATH/Info.plist")
+          if [ ! -x "$APP_PATH/$EXECUTABLE" ]; then
+            echo "Could not find executable $EXECUTABLE in $APP_PATH"
+            ls -la "$APP_PATH"
+            exit 1
+          fi
+
           rm -rf "$CM_BUILD_DIR/build/sideload"
           mkdir -p "$CM_BUILD_DIR/build/sideload/Payload"
-          cp -R "$APP_PATH" "$CM_BUILD_DIR/build/sideload/Payload/"
+          ditto "$APP_PATH" "$CM_BUILD_DIR/build/sideload/Payload/AudioMobile.app"
           cd "$CM_BUILD_DIR/build/sideload"
           zip -qry "$CM_BUILD_DIR/build/AudioMobile-sideload.ipa" Payload
 
