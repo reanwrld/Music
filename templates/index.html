@@ -11,7 +11,7 @@
     <!-- Ionicons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css?v=19">
+    <link rel="stylesheet" href="/static/css/style.css?v=20">
 </head>
 <body>
     <!-- Apple Music Style Login Overlay -->
@@ -247,6 +247,10 @@
         <!-- Library View -->
         <main class="card hidden history-view" id="historyView">
             <div class="history-header">
+                <button type="button" class="library-back-btn" onclick="switchPage('converter')" aria-label="Back to dashboard">
+                    <ion-icon name="arrow-back-outline"></ion-icon>
+                    <span>Dashboard</span>
+                </button>
                 <div class="history-title-row">
                     <div>
                         <h1>Library</h1>
@@ -429,6 +433,6 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=17"></script>
+    <script src="/static/js/main.js?v=18"></script>
 </body>
 </html>

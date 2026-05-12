@@ -1764,6 +1764,36 @@ input[type="range"]::-webkit-slider-thumb {
     padding: 48px 24px 24px;
 }
 
+.library-back-btn {
+    width: fit-content;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    border-radius: 13px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 800;
+    padding: 9px 13px;
+    margin-bottom: 22px;
+    transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.library-back-btn ion-icon {
+    color: var(--accent-color);
+    font-size: 19px;
+}
+
+.library-back-btn:hover {
+    background: rgba(var(--accent-rgb), 0.1);
+    color: var(--accent-color);
+    transform: translateX(-1px);
+}
+
 .history-title-row {
     display: flex;
     justify-content: space-between;
@@ -3340,6 +3370,14 @@ input[type="range"].is-scrubbing::-moz-range-thumb {
 
     .history-header {
         padding-top: 8px;
+    }
+
+    .library-back-btn {
+        min-height: 38px;
+        padding: 8px 11px;
+        margin-bottom: 16px;
+        border-radius: 12px;
+        font-size: 13px;
     }
 
     .history-title-row {
