@@ -11,7 +11,7 @@
     <!-- Ionicons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css?v=12">
+    <link rel="stylesheet" href="/static/css/style.css?v=13">
 </head>
 <body>
     <!-- Apple Music Style Login Overlay -->
@@ -79,18 +79,10 @@
 
         <nav class="sidebar-nav" aria-label="Music navigation">
             <div class="sidebar-section">
-                <h3 class="section-title">Apple Music</h3>
+                <h3 class="section-title">Music</h3>
                 <button id="navConvert" class="sidebar-link active">
                     <ion-icon name="play-circle"></ion-icon>
                     <span>Listen Now</span>
-                </button>
-                <button class="sidebar-link" onclick="showToast('Browse coming soon!')">
-                    <ion-icon name="grid"></ion-icon>
-                    <span>Browse</span>
-                </button>
-                <button class="sidebar-link" onclick="showToast('Radio coming soon!')">
-                    <ion-icon name="radio"></ion-icon>
-                    <span>Radio</span>
                 </button>
             </div>
 
@@ -99,18 +91,6 @@
                 <button id="navHistory" class="sidebar-link">
                     <ion-icon name="time"></ion-icon>
                     <span>Recently Added</span>
-                </button>
-                <button class="sidebar-link" onclick="showToast('Artists coming soon!')">
-                    <ion-icon name="person"></ion-icon>
-                    <span>Artists</span>
-                </button>
-                <button class="sidebar-link" onclick="showToast('Albums coming soon!')">
-                    <ion-icon name="albums"></ion-icon>
-                    <span>Albums</span>
-                </button>
-                <button class="sidebar-link" onclick="showToast('Songs coming soon!')">
-                    <ion-icon name="musical-notes"></ion-icon>
-                    <span>Songs</span>
                 </button>
             </div>
         </nav>
@@ -134,14 +114,6 @@
         <button class="mobile-nav-item active" onclick="switchPage('converter')">
             <ion-icon name="play-circle"></ion-icon>
             <span>Listen Now</span>
-        </button>
-        <button class="mobile-nav-item mobile-nav-secondary" onclick="showToast('Browse coming soon!')">
-            <ion-icon name="grid"></ion-icon>
-            <span>Browse</span>
-        </button>
-        <button class="mobile-nav-item mobile-nav-secondary" onclick="showToast('Radio coming soon!')">
-            <ion-icon name="radio"></ion-icon>
-            <span>Radio</span>
         </button>
         <button class="mobile-nav-item" onclick="switchPage('history')">
             <ion-icon name="library"></ion-icon>
@@ -178,13 +150,8 @@
         <main class="dashboard-view view" id="converterView">
             <section class="dashboard-hero">
                 <div>
-                    <p class="dashboard-eyebrow">Dashboard</p>
-                    <h1>Listen Now</h1>
-                    <p>Paste a YouTube link or search a song, then add it to your library.</p>
-                </div>
-                <div class="dashboard-user-chip">
-                    <ion-icon name="pulse-outline"></ion-icon>
-                    <span id="dashboardRole">Ready</span>
+                    <h1>Add Music</h1>
+                    <p>Search a song or paste a YouTube link. Keep the screen simple, and your library close.</p>
                 </div>
             </section>
 
@@ -193,45 +160,13 @@
                 <span>Guest mode keeps this library on this browser.</span>
             </div>
 
-            <section class="dashboard-stats" aria-label="Library summary">
-                <article class="stat-card">
-                    <ion-icon name="library-outline"></ion-icon>
-                    <div>
-                        <span id="dashTrackCount">0</span>
-                        <p>Tracks</p>
-                    </div>
-                </article>
-                <article class="stat-card">
-                    <ion-icon name="speedometer-outline"></ion-icon>
-                    <div>
-                        <span id="dashQualityLabel">320 kbps</span>
-                        <p>Quality</p>
-                    </div>
-                </article>
-                <article class="stat-card">
-                    <ion-icon name="musical-note-outline"></ion-icon>
-                    <div>
-                        <span id="dashFormatLabel">MP3</span>
-                        <p>Format</p>
-                    </div>
-                </article>
-                <article class="stat-card">
-                    <ion-icon name="calendar-clear-outline"></ion-icon>
-                    <div>
-                        <span id="dashLastDate">None</span>
-                        <p>Last Added</p>
-                    </div>
-                </article>
-            </section>
-
             <section class="dashboard-grid">
                 <form id="convertForm" class="convert-panel">
                     <div class="panel-heading">
                         <div>
-                            <h2>Convert</h2>
-                            <p>Search by title or paste a direct YouTube link.</p>
+                            <h2>New Track</h2>
+                            <p>Paste a link or type a song name.</p>
                         </div>
-                        <ion-icon name="cloud-download-outline"></ion-icon>
                     </div>
 
                     <div class="dashboard-input-row">
@@ -242,14 +177,8 @@
                         </div>
                         <button type="submit" id="submitBtn" class="convert-submit-btn">
                             <ion-icon name="arrow-down-outline"></ion-icon>
-                            <span id="btnText">Convert</span>
+                            <span id="btnText">Add</span>
                         </button>
-                    </div>
-
-                    <div class="format-strip">
-                        <span><ion-icon name="headset-outline"></ion-icon><strong id="summaryQuality">320 kbps</strong></span>
-                        <span><ion-icon name="document-outline"></ion-icon><strong id="summaryFormat">MP3</strong></span>
-                        <span><ion-icon name="play-circle-outline"></ion-icon><strong id="summaryAutoplay">Autoplay on</strong></span>
                     </div>
 
                     <div id="progressContainer" class="progress-card hidden">
@@ -266,8 +195,8 @@
                 <aside class="library-panel">
                     <div class="panel-heading">
                         <div>
-                            <h2>Library</h2>
-                            <p>Recently added</p>
+                            <h2>Recent</h2>
+                            <p>Your latest tracks</p>
                         </div>
                         <button type="button" class="icon-action" onclick="switchPage('history')" aria-label="Open library">
                             <ion-icon name="arrow-forward-outline"></ion-icon>
@@ -303,13 +232,6 @@
                         </button>
                     </div>
                 </div>
-
-                <div class="history-tabs">
-                    <button class="tab-btn active">All Tracks</button>
-                    <button class="tab-btn">Playlists</button>
-                    <button class="tab-btn">Albums</button>
-                    <button class="tab-btn">Artists</button>
-                </div>
             </div>
             
             <div id="historyList" class="history-list">
@@ -321,7 +243,7 @@
                     <ion-icon name="musical-notes-outline"></ion-icon>
                 </div>
                 <h2>Your Library is Empty</h2>
-                <p>Songs you convert will appear here for high-quality streaming.</p>
+                <p>Songs you add will appear here.</p>
             </div>
         </main>
 
@@ -331,7 +253,7 @@
                 <div>
                     <p class="dashboard-eyebrow">Search</p>
                     <h1>Find Music</h1>
-                    <p>Type a song, artist, or phrase to start a conversion from the dashboard.</p>
+                    <p>Type a song, artist, or phrase.</p>
                 </div>
             </section>
             <div class="search-panel">
@@ -358,23 +280,6 @@
             </div>
             
             <div style="display: flex; flex-direction: column; gap: 32px;">
-                <div>
-                    <h3 class="section-title">Audio Quality</h3>
-                    <select id="audioQuality" style="width: 100%; padding: 16px; border-radius: 16px; border: 1px solid var(--border-color); background: var(--input-bg); font-weight: 600; font-family: inherit;">
-                        <option value="128">Standard (128 kbps)</option>
-                        <option value="320" selected>High Fidelity (320 kbps)</option>
-                    </select>
-                </div>
-                
-                <div>
-                    <h3 class="section-title">Preferred Format</h3>
-                    <select id="audioFormat" style="width: 100%; padding: 16px; border-radius: 16px; border: 1px solid var(--border-color); background: var(--input-bg); font-weight: 600; font-family: inherit;">
-                        <option value="mp3" selected>MP3</option>
-                        <option value="wav">WAV</option>
-                        <option value="flac">FLAC</option>
-                    </select>
-                </div>
-
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-weight: 600; font-size: 16px;">Auto-play after download</span>
                     <label class="switch">
@@ -493,6 +398,6 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=11"></script>
+    <script src="/static/js/main.js?v=12"></script>
 </body>
 </html>

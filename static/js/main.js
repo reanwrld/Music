@@ -65,20 +65,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             modal: document.getElementById('settingsModal'),
             close: document.getElementById('closeSettingsBtn'),
             save: document.getElementById('saveSettingsBtn'),
-            quality: document.getElementById('audioQuality'),
-            format: document.getElementById('audioFormat'),
             autoplay: document.getElementById('autoPlaySetting')
         },
         dashboard: {
-            role: document.getElementById('dashboardRole'),
             guestBanner: document.getElementById('guestBanner'),
-            trackCount: document.getElementById('dashTrackCount'),
-            qualityLabel: document.getElementById('dashQualityLabel'),
-            formatLabel: document.getElementById('dashFormatLabel'),
-            lastDate: document.getElementById('dashLastDate'),
-            summaryQuality: document.getElementById('summaryQuality'),
-            summaryFormat: document.getElementById('summaryFormat'),
-            summaryAutoplay: document.getElementById('summaryAutoplay'),
             libraryList: document.getElementById('dashboardLibraryList')
         }
     };
@@ -109,20 +99,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }[char]));
     const getThumb = (item) => item.thumbnail || `https://img.youtube.com/vi/${item.id}/hqdefault.jpg`;
     const getTrackSubtitle = (track) => `${track.duration || '0:00'} • YouTube`;
-    const getQualityLabel = () => `${localStorage.getItem('audioQuality') || '320'} kbps`;
-    const getFormatLabel = () => (localStorage.getItem('audioFormat') || 'mp3').toUpperCase();
     const isAutoplayEnabled = () => localStorage.getItem('autoPlay') !== 'false';
-
-    function updateDashboardSettings() {
-        const quality = getQualityLabel();
-        const format = getFormatLabel();
-        const autoplay = isAutoplayEnabled() ? 'Autoplay on' : 'Autoplay off';
-        if (elements.dashboard.qualityLabel) elements.dashboard.qualityLabel.textContent = quality;
-        if (elements.dashboard.formatLabel) elements.dashboard.formatLabel.textContent = format;
-        if (elements.dashboard.summaryQuality) elements.dashboard.summaryQuality.textContent = quality;
-        if (elements.dashboard.summaryFormat) elements.dashboard.summaryFormat.textContent = format;
-        if (elements.dashboard.summaryAutoplay) elements.dashboard.summaryAutoplay.textContent = autoplay;
-    }
 
     // --- UI Logic ---
     const setSidebarOpen = (isOpen) => {
@@ -229,7 +206,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 currentUserRole = data.role;
                 document.getElementById('sidebarUsername').textContent = data.user;
                 document.getElementById('sidebarUserRole').textContent = data.role === 'guest' ? 'Guest Access' : 'Premium Member';
-                if (elements.dashboard.role) elements.dashboard.role.textContent = data.role === 'guest' ? 'Guest' : data.user;
                 if (elements.dashboard.guestBanner) elements.dashboard.guestBanner.classList.toggle('hidden', data.role !== 'guest');
                 elements.login.classList.add('hidden');
                 elements.app.classList.remove('hidden');
@@ -397,9 +373,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function renderDashboard(history) {
-        if (elements.dashboard.trackCount) elements.dashboard.trackCount.textContent = history.length;
-        if (elements.dashboard.lastDate) elements.dashboard.lastDate.textContent = history[0]?.date || 'None';
-        updateDashboardSettings();
         renderRecentCarousel(history);
         renderDashboardLibrary(history);
     }
@@ -875,8 +848,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         elements.converter.status.textContent = 'Preparing...';
         const fd = new FormData();
         fd.append('url', url);
-        fd.append('quality', localStorage.getItem('audioQuality') || '320');
-        fd.append('audio_format', localStorage.getItem('audioFormat') || 'mp3');
         try {
             const res = await fetch('/convert', { method: 'POST', body: fd });
             if (res.ok) {
@@ -910,7 +881,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         setTimeout(async () => {
                             elements.converter.input.value = '';
                             elements.converter.btn.disabled = false;
-                            elements.converter.btnText.textContent = 'Convert';
+                            elements.converter.btnText.textContent = 'Add';
                             elements.converter.progress.classList.add('hidden');
                             await loadHistory();
                             if (isAutoplayEnabled() && data.metadata) {
@@ -955,10 +926,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (elements.settings.close) elements.settings.close.addEventListener('click', () => elements.settings.modal && elements.settings.modal.classList.add('hidden'));
     if (elements.settings.save) {
         elements.settings.save.addEventListener('click', () => {
-            if (elements.settings.quality) localStorage.setItem('audioQuality', elements.settings.quality.value);
-            if (elements.settings.format) localStorage.setItem('audioFormat', elements.settings.format.value);
             if (elements.settings.autoplay) localStorage.setItem('autoPlay', elements.settings.autoplay.checked);
-            updateDashboardSettings();
             if (elements.settings.modal) elements.settings.modal.classList.add('hidden');
             showToast('Settings saved');
         });
@@ -995,10 +963,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const init = () => {
         initTheme();
         checkAuth();
-        if (elements.settings.quality) elements.settings.quality.value = localStorage.getItem('audioQuality') || '320';
-        if (elements.settings.format) elements.settings.format.value = localStorage.getItem('audioFormat') || 'mp3';
         if (elements.settings.autoplay) elements.settings.autoplay.checked = localStorage.getItem('autoPlay') !== 'false';
-        updateDashboardSettings();
         // Initialize slider visuals
         [elements.player.volume, elements.player.seekbar, document.getElementById('largeVolume'), document.getElementById('largeSeekbar')]
             .forEach(el => { if (el) updateSliderTrack(el); });

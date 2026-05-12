@@ -332,10 +332,10 @@ body {
 /* Dashboard */
 .dashboard-view {
     width: 100%;
-    max-width: 1120px;
+    max-width: 1040px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 20px;
 }
 
 .dashboard-hero {
@@ -343,18 +343,19 @@ body {
     justify-content: space-between;
     align-items: flex-start;
     gap: 24px;
-    padding-top: 8px;
+    padding-top: 4px;
 }
 
 .dashboard-hero h1 {
-    font-size: 42px;
+    font-size: 40px;
     letter-spacing: 0;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .dashboard-hero p {
-    max-width: 620px;
+    max-width: 560px;
     font-weight: 500;
+    line-height: 1.5;
 }
 
 .dashboard-eyebrow {
@@ -367,8 +368,7 @@ body {
 }
 
 .dashboard-user-chip,
-.guest-banner,
-.format-strip span {
+.guest-banner {
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -454,8 +454,8 @@ body {
 
 .dashboard-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.55fr) minmax(320px, 0.9fr);
-    gap: 20px;
+    grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.78fr);
+    gap: 16px;
     align-items: stretch;
 }
 
@@ -464,14 +464,14 @@ body {
 .dashboard-section,
 .search-panel {
     border: 1px solid var(--border-color);
-    border-radius: 24px;
-    background: rgba(var(--card-bg-rgb), 0.84);
-    box-shadow: var(--shadow-soft);
+    border-radius: 18px;
+    background: rgba(var(--card-bg-rgb), 0.9);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.035);
 }
 
 .convert-panel,
 .library-panel {
-    padding: 24px;
+    padding: 22px;
 }
 
 .panel-heading,
@@ -485,7 +485,7 @@ body {
 
 .panel-heading h2,
 .section-heading h2 {
-    font-size: 22px;
+    font-size: 21px;
     letter-spacing: 0;
     margin: 0 0 4px;
 }
@@ -522,7 +522,7 @@ body {
 }
 
 #urlInput {
-    height: 58px;
+    height: 60px;
     padding-left: 50px;
     border-color: var(--border-color);
     background: var(--input-bg);
@@ -538,9 +538,9 @@ body {
 }
 
 .convert-submit-btn {
-    width: 138px;
-    min-height: 58px;
-    border-radius: 16px;
+    width: 124px;
+    min-height: 60px;
+    border-radius: 15px;
     background: var(--accent-color);
     color: #ffffff;
     display: inline-flex;
@@ -549,7 +549,7 @@ body {
     gap: 8px;
     font-size: 15px;
     font-weight: 800;
-    box-shadow: 0 12px 28px rgba(var(--accent-rgb), 0.22);
+    box-shadow: 0 10px 24px rgba(var(--accent-rgb), 0.2);
 }
 
 .convert-submit-btn:hover {
@@ -563,34 +563,8 @@ body {
     transform: none;
 }
 
-.format-strip {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 18px;
-}
-
-.format-strip span {
-    border: 1px solid var(--border-color);
-    border-radius: 999px;
-    background: var(--input-bg);
-    color: var(--text-secondary);
-    padding: 8px 12px;
-    font-size: 12px;
-    font-weight: 750;
-}
-
-.format-strip ion-icon {
-    color: var(--accent-color);
-    font-size: 16px;
-}
-
-.format-strip strong {
-    color: var(--text-primary);
-}
-
 .progress-card {
-    margin-top: 22px;
+    margin-top: 18px;
     border: 1px solid var(--border-color);
     border-radius: 18px;
     background: var(--input-bg);
@@ -2355,24 +2329,6 @@ input[type="range"].is-scrubbing::-moz-range-thumb {
         width: 100%;
     }
 
-    .format-strip {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 8px;
-    }
-
-    .format-strip span {
-        justify-content: center;
-        padding: 9px 8px;
-        min-width: 0;
-    }
-
-    .format-strip strong {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
     .search-results {
         max-height: min(420px, 52vh);
         border-radius: 18px;
@@ -2619,10 +2575,6 @@ input[type="range"].is-scrubbing::-moz-range-thumb {
     .library-panel,
     .dashboard-section {
         padding: 16px;
-    }
-
-    .format-strip {
-        grid-template-columns: 1fr;
     }
 
     .mobile-bottom-nav {
@@ -2894,25 +2846,6 @@ input[type="range"].is-scrubbing::-moz-range-thumb {
         font-size: 15px;
     }
 
-    .format-strip {
-        display: flex;
-        overflow-x: auto;
-        flex-wrap: nowrap;
-        margin: 14px -18px 0;
-        padding: 0 18px 2px;
-        scrollbar-width: none;
-    }
-
-    .format-strip::-webkit-scrollbar {
-        display: none;
-    }
-
-    .format-strip span {
-        flex: 0 0 auto;
-        justify-content: flex-start;
-        padding: 8px 11px;
-    }
-
     .progress-card {
         margin-top: 16px;
         padding: 14px;
@@ -3112,11 +3045,6 @@ input[type="range"].is-scrubbing::-moz-range-thumb {
 
     .convert-panel {
         padding: 16px;
-    }
-
-    .format-strip {
-        margin-inline: -16px;
-        padding-inline: 16px;
     }
 
     .mobile-bottom-nav {
