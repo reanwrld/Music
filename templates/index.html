@@ -11,7 +11,7 @@
     <!-- Ionicons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css?v=14">
+    <link rel="stylesheet" href="/static/css/style.css?v=15">
 </head>
 <body>
     <!-- Apple Music Style Login Overlay -->
@@ -54,6 +54,22 @@
             <!-- Guest Access -->
             <div style="margin-top: 28px; border-top: 1px solid rgba(0,0,0,0.06); padding-top: 24px;">
                 <button id="guestBtn" style="background: none; border: none; color: #fa233b; font-weight: 700; font-size: 15px; cursor: pointer; padding: 8px 16px; border-radius: 8px; transition: background 0.2s;">Continue as Guest →</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="welcomeOverlay" class="welcome-overlay hidden" aria-live="polite" aria-hidden="true">
+        <div class="welcome-card">
+            <div class="welcome-mark" aria-hidden="true">
+                <ion-icon name="musical-note"></ion-icon>
+            </div>
+            <p id="welcomeGreeting" class="welcome-greeting">Welcome</p>
+            <h2>Music World</h2>
+            <div class="welcome-motion" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
             </div>
         </div>
     </div>
@@ -398,6 +414,6 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=12"></script>
+    <script src="/static/js/main.js?v=13"></script>
 </body>
 </html>

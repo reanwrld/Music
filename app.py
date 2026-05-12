@@ -29,6 +29,17 @@ current_progress = {"percent": 0, "status": "idle", "filename": "", "message": "
 # --- Persistence Logic ---
 USERS_FILE = "users.json"
 HISTORY_FILE = "history.json"
+AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 180
+
+def set_auth_cookie(response: Response, value: str):
+    response.set_cookie(
+        key="auth_token",
+        value=value,
+        httponly=True,
+        max_age=AUTH_COOKIE_MAX_AGE,
+        samesite="lax",
+        path="/",
+    )
 
 def load_data():
     global users_db, usernames_set, history_db
@@ -114,7 +125,7 @@ def get_current_user(auth_token: str = Cookie(None)):
 async def login(response: Response, email: str = Form(...), password: str = Form(...)):
     email = email.strip().lower()
     if email in users_db and users_db[email]["password"] == password:
-        response.set_cookie(key="auth_token", value=f"session_{email}", httponly=True)
+        set_auth_cookie(response, f"session_{email}")
         return {"status": "success"}
     raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -135,17 +146,17 @@ async def signup(response: Response, email: str = Form(...), password: str = For
     # Fire off confirmation email in the background
     asyncio.create_task(send_confirmation_email(email))
     
-    response.set_cookie(key="auth_token", value=f"session_{email}", httponly=True)
+    set_auth_cookie(response, f"session_{email}")
     return {"status": "success"}
 
 @app.post("/guest-login")
 async def guest_login(response: Response):
-    response.set_cookie(key="auth_token", value="guest_session", httponly=True)
+    set_auth_cookie(response, "guest_session")
     return {"status": "success"}
 
 @app.post("/logout")
 async def logout(response: Response):
-    response.delete_cookie("auth_token")
+    response.delete_cookie("auth_token", path="/")
     return {"status": "success"}
 
 @app.get("/check-auth")

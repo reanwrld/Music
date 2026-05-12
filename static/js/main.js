@@ -70,6 +70,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         dashboard: {
             guestBanner: document.getElementById('guestBanner'),
             libraryList: document.getElementById('dashboardLibraryList')
+        },
+        welcome: {
+            overlay: document.getElementById('welcomeOverlay'),
+            greeting: document.getElementById('welcomeGreeting')
         }
     };
 
@@ -100,6 +104,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     const getThumb = (item) => item.thumbnail || `https://img.youtube.com/vi/${item.id}/hqdefault.jpg`;
     const getTrackSubtitle = (track) => `${track.duration || '0:00'} • YouTube`;
     const isAutoplayEnabled = () => localStorage.getItem('autoPlay') !== 'false';
+
+    function showWelcome(userName = 'there') {
+        if (!elements.welcome.overlay) return;
+        const cleanName = String(userName || 'there').trim() || 'there';
+        if (elements.welcome.greeting) {
+            elements.welcome.greeting.textContent = cleanName.toLowerCase() === 'guest'
+                ? 'Welcome, Guest'
+                : `Welcome, ${cleanName}`;
+        }
+
+        elements.welcome.overlay.classList.remove('hidden', 'is-leaving');
+        elements.welcome.overlay.classList.add('is-visible');
+        elements.welcome.overlay.setAttribute('aria-hidden', 'false');
+
+        window.clearTimeout(showWelcome.hideTimer);
+        window.clearTimeout(showWelcome.removeTimer);
+        showWelcome.hideTimer = window.setTimeout(() => {
+            elements.welcome.overlay.classList.add('is-leaving');
+            elements.welcome.overlay.classList.remove('is-visible');
+            showWelcome.removeTimer = window.setTimeout(() => {
+                elements.welcome.overlay.classList.add('hidden');
+                elements.welcome.overlay.classList.remove('is-leaving');
+                elements.welcome.overlay.setAttribute('aria-hidden', 'true');
+            }, 420);
+        }, 1900);
+    }
 
     // --- UI Logic ---
     const setSidebarOpen = (isOpen) => {
@@ -198,7 +228,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Authentication ---
-    async function checkAuth() {
+    async function checkAuth({ showWelcomeMessage = false } = {}) {
         try {
             const res = await fetch('/check-auth');
             const data = await res.json();
@@ -210,6 +240,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elements.login.classList.add('hidden');
                 elements.app.classList.remove('hidden');
                 loadHistory();
+                if (showWelcomeMessage) showWelcome(data.user);
             } else {
                 currentUserRole = null;
                 elements.login.classList.remove('hidden');
@@ -284,7 +315,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const res = await fetch('/login', { method: 'POST', body: formData });
                 if (res.ok) {
-                    checkAuth();
+                    checkAuth({ showWelcomeMessage: true });
                 } else {
                     showError('Invalid email or password. Please try again.');
                     if (submitBtn) { submitBtn.textContent = 'Continue'; submitBtn.disabled = false; }
@@ -314,7 +345,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const res = await fetch('/signup', { method: 'POST', body: formData });
                 if (res.ok) {
-                    checkAuth();
+                    checkAuth({ showWelcomeMessage: true });
                 } else {
                     const body = await res.json().catch(() => ({}));
                     showError(body.detail || 'Signup failed. Email may already be in use.');
@@ -332,7 +363,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             guestBtn.textContent = 'Loading...';
             try {
                 const res = await fetch('/guest-login', { method: 'POST' });
-                if (res.ok) checkAuth();
+                if (res.ok) checkAuth({ showWelcomeMessage: true });
                 else { guestBtn.textContent = 'Continue as Guest →'; showError('Guest login failed. Try again.'); }
             } catch (err) {
                 guestBtn.textContent = 'Continue as Guest →';
