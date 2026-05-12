@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Full-screen Player Elements
     const nowPlayingOverlay = document.getElementById('nowPlayingOverlay');
     const closeNowPlaying = document.getElementById('closeNowPlaying');
+    const nowPlayingTitle = document.getElementById('nowPlayingTitle');
     const largePlayBtn = document.getElementById('largePlayBtn');
     const largePlayIcon = document.getElementById('largePlayIcon');
     const largeSeekbar = document.getElementById('largeSeekbar');
@@ -91,6 +92,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const largeTotalTime = document.getElementById('largeTotalTime');
     const largeQueueMeta = document.getElementById('largeQueueMeta');
     const largeQueueBtn = document.getElementById('largeQueueBtn');
+    const largeQueueIcon = document.getElementById('largeQueueIcon');
     const largeQueuePanel = document.getElementById('largeQueuePanel');
     const nowPlayingBg = document.getElementById('nowPlayingBg');
     const largeArtwork = document.getElementById('largeArtwork');
@@ -527,6 +529,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         largeQueueBtn.classList.toggle('is-active', isOpen);
         largeQueueBtn.setAttribute('aria-expanded', String(isOpen));
         largeQueueBtn.setAttribute('aria-label', isOpen ? 'Hide queue' : 'Show queue');
+        if (nowPlayingTitle) nowPlayingTitle.textContent = isOpen ? 'Up Next' : 'Now Playing';
+        if (largeQueueIcon) largeQueueIcon.setAttribute('name', isOpen ? 'albums-outline' : 'list-outline');
     }
 
     function renderLargeQueue() {

@@ -1237,10 +1237,13 @@ input:focus {
     gap: 24px;
     padding: 24px 28px 28px;
     animation: slideUp 0.42s cubic-bezier(0.16, 1, 0.3, 1);
-    contain: layout paint;
+    contain: layout;
 }
 
 .now-playing-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 5;
     display: grid;
     grid-template-columns: 44px 1fr 44px;
     align-items: center;
@@ -1250,6 +1253,7 @@ input:focus {
     font-weight: 850;
     letter-spacing: 0;
     text-align: center;
+    padding-bottom: 4px;
 }
 
 .overlay-icon-btn {
@@ -1400,13 +1404,13 @@ input:focus {
 }
 
 .large-queue-panel {
-    max-height: min(32vh, 260px);
+    max-height: min(34vh, 280px);
     overflow-y: auto;
     overscroll-behavior: contain;
-    border: 1px solid rgba(var(--text-primary-rgb), 0.08);
-    border-radius: 20px;
-    background: rgba(var(--text-primary-rgb), 0.045);
-    padding: 10px;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
     scrollbar-width: none;
 }
 
@@ -1419,9 +1423,9 @@ input:focus {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 4px 4px 10px;
+    padding: 2px 2px 12px;
     color: var(--text-primary);
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 850;
 }
 
@@ -1434,30 +1438,32 @@ input:focus {
 .large-queue-list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
 }
 
 .large-queue-item {
     width: 100%;
-    min-height: 58px;
+    min-height: 62px;
     display: grid;
     grid-template-columns: 44px minmax(0, 1fr) 28px;
     align-items: center;
-    gap: 10px;
-    border: none;
-    border-radius: 14px;
-    background: transparent;
+    gap: 12px;
+    border: 1px solid rgba(var(--text-primary-rgb), 0.07);
+    border-radius: 16px;
+    background: rgba(var(--text-primary-rgb), 0.035);
     color: var(--text-primary);
     cursor: pointer;
-    padding: 7px;
+    padding: 8px;
     font-family: inherit;
     text-align: left;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
 }
 
 .large-queue-item:hover,
 .large-queue-item:focus-visible,
 .large-queue-item.is-active {
-    background: rgba(var(--text-primary-rgb), 0.07);
+    background: rgba(var(--accent-rgb), 0.1);
+    border-color: rgba(var(--accent-rgb), 0.18);
     outline: none;
 }
 
@@ -1526,6 +1532,28 @@ input:focus {
 .large-queue-empty ion-icon {
     color: var(--accent-color);
     font-size: 28px;
+}
+
+.now-playing-overlay.is-queue-open .large-artwork,
+.now-playing-overlay.is-queue-open .large-track-row,
+.now-playing-overlay.is-queue-open .large-seeker,
+.now-playing-overlay.is-queue-open .large-controls,
+.now-playing-overlay.is-queue-open .large-volume-row {
+    display: none;
+}
+
+.now-playing-overlay.is-queue-open .now-playing-content {
+    justify-content: flex-start;
+}
+
+.now-playing-overlay.is-queue-open .now-playing-lower {
+    min-height: 0;
+    flex: 1;
+}
+
+.now-playing-overlay.is-queue-open .large-queue-panel {
+    max-height: none;
+    flex: 1;
 }
 
 input[type="range"] {
@@ -3802,6 +3830,10 @@ input[type="range"].is-scrubbing::-moz-range-thumb {
 
     .now-playing-topbar {
         grid-template-columns: 42px 1fr 42px;
+        background: rgba(var(--card-bg-rgb), 0.96);
+        backdrop-filter: blur(18px) saturate(160%);
+        -webkit-backdrop-filter: blur(18px) saturate(160%);
+        border-radius: 0 0 18px 18px;
     }
 
     .overlay-icon-btn {
@@ -3816,10 +3848,6 @@ input[type="range"].is-scrubbing::-moz-range-thumb {
         aspect-ratio: auto;
         border-radius: 20px;
         box-shadow: 0 16px 36px rgba(0,0,0,0.12);
-    }
-
-    .now-playing-overlay.is-queue-open .large-artwork {
-        height: min(38vw, 160px);
     }
 
     .now-playing-lower {
@@ -3857,8 +3885,17 @@ input[type="range"].is-scrubbing::-moz-range-thumb {
     }
 
     .large-queue-panel {
-        max-height: 28vh;
-        border-radius: 16px;
+        max-height: 30vh;
+    }
+
+    .now-playing-overlay.is-queue-open .large-queue-panel {
+        max-height: none;
+    }
+
+    .large-queue-item {
+        min-height: 60px;
+        border-radius: 15px;
+        background: rgba(var(--text-primary-rgb), 0.04);
     }
 }
 

@@ -11,7 +11,7 @@
     <!-- Ionicons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css?v=17">
+    <link rel="stylesheet" href="/static/css/style.css?v=18">
 </head>
 <body>
     <!-- Apple Music Style Login Overlay -->
@@ -369,9 +369,9 @@
                 <button id="closeNowPlaying" class="overlay-icon-btn" type="button" aria-label="Back">
                     <ion-icon name="arrow-back-outline"></ion-icon>
                 </button>
-                <span>Now Playing</span>
+                <span id="nowPlayingTitle">Now Playing</span>
                 <button id="largeQueueBtn" class="overlay-icon-btn" type="button" aria-label="Show queue" aria-expanded="false">
-                    <ion-icon name="list-outline"></ion-icon>
+                    <ion-icon id="largeQueueIcon" name="list-outline"></ion-icon>
                 </button>
             </div>
 
@@ -416,6 +416,6 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=15"></script>
+    <script src="/static/js/main.js?v=16"></script>
 </body>
 </html>
