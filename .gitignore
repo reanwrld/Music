@@ -1,0 +1,38 @@
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local env/secrets
+.env
+.env.*
+!.env.example
+
+# App-generated local data
+users.json
+history.json
+uploads/*
+!uploads/.gitkeep
+!uploads/profiles/
+uploads/profiles/*
+!uploads/profiles/.gitkeep
+
+# Local editor settings
+.vscode/
+
+# Build outputs
+build/
+DerivedData/
+*.ipa
+*.app
+*.xcarchive

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Base styles */
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f7f8fc;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+            margin-top: 40px;
+            margin-bottom: 40px;
+        }
+
+        .content {
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        .icon-wrapper {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 24px auto;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            border-radius: 16px;
+            display: inline-block;
+        }
+
+        .icon-wrapper img {
+            width: 32px;
+            height: 32px;
+            margin-top: 16px;
+        }
+
+        h1 {
+            color: #111827;
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 0 16px 0;
+            letter-spacing: -0.02em;
+        }
+
+        p {
+            color: #6b7280;
+            font-size: 16px;
+            line-height: 1.6;
+            margin: 0 0 32px 0;
+        }
+
+        .btn {
+            display: inline-block;
+            background-color: #6366f1;
+            color: #ffffff !important;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 600;
+            padding: 16px 36px;
+            border-radius: 12px;
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+        }
+
+        .footer {
+            background-color: #f9fafb;
+            padding: 32px 40px;
+            text-align: center;
+            border-top: 1px solid #f3f4f6;
+        }
+
+        .security-title {
+            color: #374151;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+        }
+
+        .security-tips {
+            color: #9ca3af;
+            font-size: 13px;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        @media only screen and (max-width: 600px) {
+            .container {
+                margin-top: 20px;
+                margin-bottom: 20px;
+                border-radius: 0;
+            }
+            .content {
+                padding: 40px 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f7f8fc; width: 100%;">
+        <tr>
+            <td align="center">
+                <div class="container">
+                    <div class="content">
+                        <!-- Simulated Icon via inline SVG data URI or simple styling -->
+                        <div class="icon-wrapper">
+                            <img src="https://api.iconify.design/ion/headset.svg?color=white" alt="Audio">
+                        </div>
+                        
+                        <h1>Verify your account</h1>
+                        
+                        <p>
+                            Welcome to Audio Dashboard! We're thrilled to have you on board. 
+                            Please verify your email address to unlock premium features and start your high-quality MP3 conversions.
+                        </p>
+                        
+                        <a href="#" class="btn">Verify Email Address</a>
+                    </div>
+                    
+                    <div class="footer">
+                        <div class="security-title">Security Tips</div>
+                        <p class="security-tips">
+                            Never share your password or this verification link with anyone. 
+                            Our team will never ask for your password via email.
+                        </p>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

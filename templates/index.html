@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio - Listen Now</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Ionicons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css?v=12">
+</head>
+<body>
+    <!-- Apple Music Style Login Overlay -->
+    <div id="loginOverlay" class="modal-overlay hidden" style="z-index: 9999; position: fixed;">
+        <!-- Dynamic Gradient Background -->
+        <div class="login-bg"></div>
+        
+        <div class="card login-card" style="position: relative; z-index: 1; max-width: 420px; width: 90%; padding: 48px; text-align: center; background: var(--glass-bg); backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%); border-radius: 28px; border: 1px solid var(--border-color); box-shadow: var(--shadow-premium); transform: none;">
+            
+            <!-- Apple Music Logo -->
+            <div style="width: 72px; height: 72px; background: linear-gradient(180deg, #ff5e62, #ff2d55); border-radius: 16px; display: flex; align-items: center; justify-content: center; color: white; font-size: 44px; margin: 0 auto 32px auto; box-shadow: 0 10px 25px rgba(255,45,85,0.3);">
+                <ion-icon name="musical-note"></ion-icon>
+            </div>
+
+            <h1 style="font-size: 30px; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; color: var(--text-primary);">Music</h1>
+            <p style="color: #86868b; font-size: 15px; font-weight: 500; margin-bottom: 32px;">Experience high-fidelity audio everywhere.</p>
+
+            <!-- Tab Switcher -->
+            <div style="display: flex; background: rgba(0,0,0,0.05); padding: 4px; border-radius: 12px; margin-bottom: 24px; gap: 4px;">
+                <button id="tabLogin" style="flex: 1; padding: 10px; border-radius: 10px; border: none; background: white; color: #1d1d1f; font-weight: 700; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); cursor: pointer; transition: all 0.2s;">Sign In</button>
+                <button id="tabSignup" style="flex: 1; padding: 10px; border-radius: 10px; border: none; background: transparent; color: #86868b; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s;">Sign Up</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" style="flex-direction: column; gap: 12px; display: flex;">
+                <input type="email" id="loginEmail" placeholder="Email" autocomplete="email" style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.8); font-weight: 500; font-size: 15px; color: #1d1d1f; outline: none;">
+                <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.8); font-weight: 500; font-size: 15px; color: #1d1d1f; outline: none;">
+                <button id="loginSubmitBtn" type="submit" style="width: 100%; padding: 16px; margin-top: 4px; background: #fa233b; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; color: white; cursor: pointer; transition: background 0.2s;">Continue</button>
+            </form>
+            <form id="signupForm" style="flex-direction: column; gap: 12px; display: none;">
+                <input type="text" id="signupUsername" placeholder="Name" autocomplete="name" style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.8); font-weight: 500; font-size: 15px; color: #1d1d1f; outline: none;">
+                <input type="email" id="signupEmail" placeholder="Email" autocomplete="email" style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.8); font-weight: 500; font-size: 15px; color: #1d1d1f; outline: none;">
+                <input type="password" id="signupPassword" placeholder="Password" autocomplete="new-password" style="width: 100%; padding: 16px; border-radius: 12px; border: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.8); font-weight: 500; font-size: 15px; color: #1d1d1f; outline: none;">
+                <button id="signupSubmitBtn" type="submit" style="width: 100%; padding: 16px; margin-top: 4px; background: #fa233b; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; color: white; cursor: pointer; transition: background 0.2s;">Create Account</button>
+            </form>
+
+            <!-- Error Message -->
+            <div id="loginError" style="display: none; color: #ff3b30; margin-top: 16px; font-size: 13px; font-weight: 600; background: rgba(255,59,48,0.08); padding: 10px 14px; border-radius: 10px;"></div>
+            
+            <!-- Guest Access -->
+            <div style="margin-top: 28px; border-top: 1px solid rgba(0,0,0,0.06); padding-top: 24px;">
+                <button id="guestBtn" style="background: none; border: none; color: #fa233b; font-weight: 700; font-size: 15px; cursor: pointer; padding: 8px 16px; border-radius: 8px; transition: background 0.2s;">Continue as Guest →</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Glass Sidebar -->
+    <aside id="sidebar" class="sidebar">
+        <div class="sidebar-brand">
+            <div class="sidebar-brand-icon">
+                <ion-icon name="musical-note"></ion-icon>
+            </div>
+            <span>Music</span>
+        </div>
+
+        <div class="sidebar-account">
+            <div class="sidebar-avatar">
+                <ion-icon name="person"></ion-icon>
+            </div>
+            <div class="sidebar-account-copy">
+                <span id="sidebarUsername">Guest</span>
+                <small id="sidebarUserRole">Guest Access</small>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Music navigation">
+            <div class="sidebar-section">
+                <h3 class="section-title">Apple Music</h3>
+                <button id="navConvert" class="sidebar-link active">
+                    <ion-icon name="play-circle"></ion-icon>
+                    <span>Listen Now</span>
+                </button>
+                <button class="sidebar-link" onclick="showToast('Browse coming soon!')">
+                    <ion-icon name="grid"></ion-icon>
+                    <span>Browse</span>
+                </button>
+                <button class="sidebar-link" onclick="showToast('Radio coming soon!')">
+                    <ion-icon name="radio"></ion-icon>
+                    <span>Radio</span>
+                </button>
+            </div>
+
+            <div class="sidebar-section">
+                <h3 class="section-title">Library</h3>
+                <button id="navHistory" class="sidebar-link">
+                    <ion-icon name="time"></ion-icon>
+                    <span>Recently Added</span>
+                </button>
+                <button class="sidebar-link" onclick="showToast('Artists coming soon!')">
+                    <ion-icon name="person"></ion-icon>
+                    <span>Artists</span>
+                </button>
+                <button class="sidebar-link" onclick="showToast('Albums coming soon!')">
+                    <ion-icon name="albums"></ion-icon>
+                    <span>Albums</span>
+                </button>
+                <button class="sidebar-link" onclick="showToast('Songs coming soon!')">
+                    <ion-icon name="musical-notes"></ion-icon>
+                    <span>Songs</span>
+                </button>
+            </div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <button id="sidebarSettings" class="sidebar-link">
+                <ion-icon name="settings-outline"></ion-icon>
+                <span>Settings</span>
+            </button>
+            <button id="sidebarLogout" class="sidebar-link logout">
+                <ion-icon name="log-out-outline"></ion-icon>
+                <span>Sign Out</span>
+            </button>
+        </div>
+    </aside>
+
+    <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+    <!-- Mobile Bottom Navigation (Apple Music Style) -->
+    <nav class="mobile-bottom-nav">
+        <button class="mobile-nav-item active" onclick="switchPage('converter')">
+            <ion-icon name="play-circle"></ion-icon>
+            <span>Listen Now</span>
+        </button>
+        <button class="mobile-nav-item mobile-nav-secondary" onclick="showToast('Browse coming soon!')">
+            <ion-icon name="grid"></ion-icon>
+            <span>Browse</span>
+        </button>
+        <button class="mobile-nav-item mobile-nav-secondary" onclick="showToast('Radio coming soon!')">
+            <ion-icon name="radio"></ion-icon>
+            <span>Radio</span>
+        </button>
+        <button class="mobile-nav-item" onclick="switchPage('history')">
+            <ion-icon name="library"></ion-icon>
+            <span>Library</span>
+        </button>
+        <button class="mobile-nav-item" onclick="switchPage('search')">
+            <ion-icon name="search"></ion-icon>
+            <span>Search</span>
+        </button>
+    </nav>
+
+    <!-- Main Navigation Bar -->
+    <header class="navbar">
+        <div class="nav-left">
+            <button id="sidebarToggle" class="sidebar-toggle-btn" aria-label="Open sidebar" aria-expanded="false">
+                <ion-icon name="menu-outline"></ion-icon>
+            </button>
+            <div class="nav-brand">
+                <ion-icon name="musical-notes"></ion-icon>
+                Music
+            </div>
+        </div>
+        <div class="nav-right">
+            <button id="themeToggle" class="sidebar-toggle-btn">
+                <ion-icon name="moon-outline"></ion-icon>
+            </button>
+        </div>
+    </header>
+
+    <!-- App Container -->
+    <div id="appContainer" class="app-container">
+        
+        <!-- Converter Dashboard -->
+        <main class="dashboard-view view" id="converterView">
+            <section class="dashboard-hero">
+                <div>
+                    <p class="dashboard-eyebrow">Dashboard</p>
+                    <h1>Listen Now</h1>
+                    <p>Paste a YouTube link or search a song, then add it to your library.</p>
+                </div>
+                <div class="dashboard-user-chip">
+                    <ion-icon name="pulse-outline"></ion-icon>
+                    <span id="dashboardRole">Ready</span>
+                </div>
+            </section>
+
+            <div id="guestBanner" class="guest-banner hidden">
+                <ion-icon name="information-circle"></ion-icon>
+                <span>Guest mode keeps this library on this browser.</span>
+            </div>
+
+            <section class="dashboard-stats" aria-label="Library summary">
+                <article class="stat-card">
+                    <ion-icon name="library-outline"></ion-icon>
+                    <div>
+                        <span id="dashTrackCount">0</span>
+                        <p>Tracks</p>
+                    </div>
+                </article>
+                <article class="stat-card">
+                    <ion-icon name="speedometer-outline"></ion-icon>
+                    <div>
+                        <span id="dashQualityLabel">320 kbps</span>
+                        <p>Quality</p>
+                    </div>
+                </article>
+                <article class="stat-card">
+                    <ion-icon name="musical-note-outline"></ion-icon>
+                    <div>
+                        <span id="dashFormatLabel">MP3</span>
+                        <p>Format</p>
+                    </div>
+                </article>
+                <article class="stat-card">
+                    <ion-icon name="calendar-clear-outline"></ion-icon>
+                    <div>
+                        <span id="dashLastDate">None</span>
+                        <p>Last Added</p>
+                    </div>
+                </article>
+            </section>
+
+            <section class="dashboard-grid">
+                <form id="convertForm" class="convert-panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h2>Convert</h2>
+                            <p>Search by title or paste a direct YouTube link.</p>
+                        </div>
+                        <ion-icon name="cloud-download-outline"></ion-icon>
+                    </div>
+
+                    <div class="dashboard-input-row">
+                        <div class="input-wrapper">
+                            <ion-icon name="search-outline" class="input-leading-icon"></ion-icon>
+                            <input type="text" id="urlInput" placeholder="Paste link or type a song name" required autocomplete="off" spellcheck="false" autocapitalize="off" autocorrect="off">
+                            <div id="searchResults" class="search-results hidden"></div>
+                        </div>
+                        <button type="submit" id="submitBtn" class="convert-submit-btn">
+                            <ion-icon name="arrow-down-outline"></ion-icon>
+                            <span id="btnText">Convert</span>
+                        </button>
+                    </div>
+
+                    <div class="format-strip">
+                        <span><ion-icon name="headset-outline"></ion-icon><strong id="summaryQuality">320 kbps</strong></span>
+                        <span><ion-icon name="document-outline"></ion-icon><strong id="summaryFormat">MP3</strong></span>
+                        <span><ion-icon name="play-circle-outline"></ion-icon><strong id="summaryAutoplay">Autoplay on</strong></span>
+                    </div>
+
+                    <div id="progressContainer" class="progress-card hidden">
+                        <div class="progress-header">
+                            <span id="statusText">Preparing...</span>
+                            <span id="percentText">0%</span>
+                        </div>
+                        <div class="progress-container-refined">
+                            <div id="progressFill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </form>
+
+                <aside class="library-panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h2>Library</h2>
+                            <p>Recently added</p>
+                        </div>
+                        <button type="button" class="icon-action" onclick="switchPage('history')" aria-label="Open library">
+                            <ion-icon name="arrow-forward-outline"></ion-icon>
+                        </button>
+                    </div>
+                    <div id="dashboardLibraryList" class="dashboard-library-list"></div>
+                </aside>
+            </section>
+
+            <section id="recentlyPlayedSection" class="dashboard-section hidden">
+                <div class="section-heading">
+                    <h2>Recently Played</h2>
+                    <button type="button" class="text-action" onclick="switchPage('history')">View All</button>
+                </div>
+                <div id="recentCarousel" class="recent-carousel"></div>
+            </section>
+        </main>
+
+        <!-- Library View -->
+        <main class="card hidden history-view" id="historyView">
+            <div class="history-header">
+                <div class="history-title-row">
+                    <div>
+                        <h1>Library</h1>
+                        <p>Recently Added</p>
+                    </div>
+                    <div class="history-actions">
+                        <button id="playAllBtn" class="btn-primary history-primary-btn">
+                            <ion-icon name="play-sharp"></ion-icon> Play
+                        </button>
+                        <button id="shuffleBtn" class="history-secondary-btn">
+                            <ion-icon name="shuffle-outline"></ion-icon> Shuffle
+                        </button>
+                    </div>
+                </div>
+
+                <div class="history-tabs">
+                    <button class="tab-btn active">All Tracks</button>
+                    <button class="tab-btn">Playlists</button>
+                    <button class="tab-btn">Albums</button>
+                    <button class="tab-btn">Artists</button>
+                </div>
+            </div>
+            
+            <div id="historyList" class="history-list">
+                <!-- Tracks injected here -->
+            </div>
+
+            <div id="emptyHistory" class="hidden empty-history">
+                <div class="empty-history-icon">
+                    <ion-icon name="musical-notes-outline"></ion-icon>
+                </div>
+                <h2>Your Library is Empty</h2>
+                <p>Songs you convert will appear here for high-quality streaming.</p>
+            </div>
+        </main>
+
+        <!-- Search View -->
+        <main id="searchView" class="dashboard-view view hidden search-view">
+            <section class="dashboard-hero">
+                <div>
+                    <p class="dashboard-eyebrow">Search</p>
+                    <h1>Find Music</h1>
+                    <p>Type a song, artist, or phrase to start a conversion from the dashboard.</p>
+                </div>
+            </section>
+            <div class="search-panel">
+                <ion-icon name="search"></ion-icon>
+                <input type="text" id="searchBarInput" placeholder="Artists, songs, lyrics, and more">
+            </div>
+        </main>
+    </div>
+
+    <div class="app-bg"></div>
+
+
+    <!-- Premium Settings Pop-out -->
+    <div id="settingsModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px;">
+                <div>
+                    <h1>Settings</h1>
+                    <p>App preferences</p>
+                </div>
+                <button id="closeSettingsBtn" style="background: var(--input-bg); border: none; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer;">
+                    <ion-icon name="close-outline"></ion-icon>
+                </button>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 32px;">
+                <div>
+                    <h3 class="section-title">Audio Quality</h3>
+                    <select id="audioQuality" style="width: 100%; padding: 16px; border-radius: 16px; border: 1px solid var(--border-color); background: var(--input-bg); font-weight: 600; font-family: inherit;">
+                        <option value="128">Standard (128 kbps)</option>
+                        <option value="320" selected>High Fidelity (320 kbps)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <h3 class="section-title">Preferred Format</h3>
+                    <select id="audioFormat" style="width: 100%; padding: 16px; border-radius: 16px; border: 1px solid var(--border-color); background: var(--input-bg); font-weight: 600; font-family: inherit;">
+                        <option value="mp3" selected>MP3</option>
+                        <option value="wav">WAV</option>
+                        <option value="flac">FLAC</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600; font-size: 16px;">Auto-play after download</span>
+                    <label class="switch">
+                        <input type="checkbox" id="autoPlaySetting" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div style="border-top: 1px solid var(--border-color); padding-top: 32px; margin-top: 8px;">
+                    <h3 class="section-title" style="color: var(--error-color);">Danger Zone</h3>
+                    <button id="clearHistoryBtn" style="width: 100%; padding: 16px; border-radius: 16px; border: 1px solid var(--error-color); color: var(--error-color); background: transparent; cursor: pointer; font-weight: 700; transition: all 0.2s;">
+                        Clear All History
+                    </button>
+                </div>
+            </div>
+
+            <div style="margin-top: 40px;">
+                <button id="saveSettingsBtn" class="btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+        <div id="toast" style="position: fixed; top: 40px; left: 50%; transform: translateX(-50%) translateY(-150px); background: rgba(0,0,0,0.8); color: white; padding: 12px 24px; border-radius: 20px; font-size: 14px; font-weight: 600; z-index: 9999; transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); pointer-events: none;"></div>
+
+    <!-- Modern Floating Player -->
+    <div id="audioPlayer" class="audio-player active">
+        <div class="player-info">
+            <div id="playerArtwork" class="track-icon">
+                <ion-icon name="musical-note"></ion-icon>
+            </div>
+            <div class="track-details">
+                <span id="playerTitle" class="player-title">Not Playing</span>
+                <span id="playerArtist" class="player-artist">Choose a track</span>
+            </div>
+        </div>
+
+        <div class="player-center">
+            <div class="player-controls">
+                <button id="playerRewindBtn" class="transport-btn" type="button" aria-label="Previous track">
+                    <ion-icon name="play-back-sharp"></ion-icon>
+                </button>
+                <button id="playerPlayBtn" class="play-pause-btn" type="button" aria-label="Play or pause">
+                    <ion-icon id="playerPlayIcon" name="play-sharp"></ion-icon>
+                </button>
+                <button id="playerForwardBtn" class="transport-btn" type="button" aria-label="Next track">
+                    <ion-icon name="play-forward-sharp"></ion-icon>
+                </button>
+            </div>
+            <div class="seeker-container">
+                <span id="playerCurrentTime" class="seeker-time">0:00</span>
+                <input type="range" id="playerSeekbar" value="0" step="0.1" max="100" class="seeker-slider" aria-label="Track position">
+                <span id="playerTotalTime" class="seeker-time">0:00</span>
+            </div>
+        </div>
+
+        <div class="player-side">
+            <span id="playerQueuePosition" class="queue-position">0 of 0</span>
+            <div class="volume-group">
+                <ion-icon name="volume-medium-outline"></ion-icon>
+                <input type="range" id="playerVolume" value="80" step="1" max="100" class="no-thumb" aria-label="Volume">
+            </div>
+        </div>
+    </div>
+
+    <audio id="htmlAudio" class="hidden"></audio>
+    <div id="nowPlayingOverlay" class="now-playing-overlay modal-overlay hidden">
+        <div id="nowPlayingBg" class="now-playing-bg"></div>
+        
+        <div class="now-playing-content">
+            <div class="now-playing-topbar">
+                <button id="closeNowPlaying" class="overlay-icon-btn" type="button" aria-label="Close player">
+                    <ion-icon name="chevron-down"></ion-icon>
+                </button>
+                <span>Now Playing</span>
+                <button class="overlay-icon-btn" type="button" aria-label="Queue">
+                    <ion-icon name="list-outline"></ion-icon>
+                </button>
+            </div>
+
+            <div id="largeArtwork" class="large-artwork"></div>
+
+            <div class="now-playing-lower">
+                <div class="large-track-row">
+                    <div>
+                        <h1 id="largeTrackTitle">Not Playing</h1>
+                        <p id="largeArtistName">Choose a track</p>
+                    </div>
+                    <span id="largeQueueMeta" class="large-queue-meta">0 of 0</span>
+                </div>
+
+                <div class="large-seeker">
+                    <input type="range" id="largeSeekbar" value="0" step="0.1" max="100" class="seeker-slider" aria-label="Expanded track position">
+                    <div>
+                        <span id="largeCurrentTime">0:00</span>
+                        <span id="largeTotalTime">0:00</span>
+                    </div>
+                </div>
+
+                <div class="large-controls">
+                    <button id="largeRewindBtn" class="large-transport-btn" type="button" aria-label="Previous track">
+                        <ion-icon name="play-back-sharp"></ion-icon>
+                    </button>
+                    <button id="largePlayBtn" class="large-play-btn" type="button" aria-label="Play or pause">
+                        <ion-icon id="largePlayIcon" name="play-sharp"></ion-icon>
+                    </button>
+                    <button id="largeForwardBtn" class="large-transport-btn" type="button" aria-label="Next track">
+                        <ion-icon name="play-forward-sharp"></ion-icon>
+                    </button>
+                </div>
+
+                <div class="large-volume-row">
+                    <ion-icon name="volume-medium-sharp"></ion-icon>
+                    <input type="range" id="largeVolume" value="80" step="1" max="100" class="no-thumb" aria-label="Expanded player volume">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/main.js?v=11"></script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+workflows:
+  ios-sideload:
+    name: AudioMobile Sideload IPA
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      xcode: latest
+      vars:
+        XCODE_PROJECT: "ios/AudioMobile.xcodeproj"
+        XCODE_SCHEME: "AudioMobile"
+
+    scripts:
+      - name: Set sideload build number
+        script: |
+          BUILD_VERSION="${BUILD_NUMBER:-1}"
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleVersion $BUILD_VERSION" \
+            "$CM_BUILD_DIR/ios/AudioMobile/Info.plist"
+
+      - name: Build unsigned app for iPhone
+        script: |
+          xcodebuild \
+            -project "$CM_BUILD_DIR/$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath "$CM_BUILD_DIR/build/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package IPA for AltStore or Sideloadly
+        script: |
+          APP_DIR="$CM_BUILD_DIR/build/DerivedData/Build/Products/Release-iphoneos"
+          APP_PATH=$(find "$APP_DIR" -maxdepth 1 -name "*.app" -print -quit)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "No .app found in $APP_DIR"
+            exit 1
+          fi
+
+          rm -rf "$CM_BUILD_DIR/build/sideload"
+          mkdir -p "$CM_BUILD_DIR/build/sideload/Payload"
+          cp -R "$APP_PATH" "$CM_BUILD_DIR/build/sideload/Payload/"
+          cd "$CM_BUILD_DIR/build/sideload"
+          zip -qry "$CM_BUILD_DIR/build/AudioMobile-sideload.ipa" Payload
+
+    artifacts:
+      - build/AudioMobile-sideload.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+  ios-testflight:
+    name: AudioMobile TestFlight
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+
+    integrations:
+      app_store_connect: codemagic_api_key
+
+    environment:
+      xcode: latest
+      vars:
+        BUNDLE_ID: "com.reans.audiomobile"
+        XCODE_PROJECT: "ios/AudioMobile.xcodeproj"
+        XCODE_SCHEME: "AudioMobile"
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.reans.audiomobile
+
+    scripts:
+      - name: Set TestFlight build number
+        script: |
+          /usr/libexec/PlistBuddy \
+            -c "Set :CFBundleVersion $BUILD_NUMBER" \
+            "$CM_BUILD_DIR/ios/AudioMobile/Info.plist"
+
+      - name: Set up code signing settings
+        script: |
+          xcode-project use-profiles \
+            --custom-export-options='{"testFlightInternalTestingOnly": true}'
+
+      - name: Build IPA for TestFlight
+        script: |
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        submit_to_app_store: false
+        beta_groups:
+          - Internal Testers
