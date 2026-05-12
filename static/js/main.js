@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentTrackIndex = -1;
     let progressFrame = null;
     let lastProgressRender = 0;
+    let suggestionRenderToken = 0;
+    const resolvedSuggestionCache = new Map();
 
     // --- DOM Selection ---
     const elements = {
@@ -474,40 +476,102 @@ document.addEventListener('DOMContentLoaded', async () => {
         const preferenceTags = inferPreferenceTags(history);
         const historyText = history.map(item => item.title || '').join(' ').toLowerCase();
 
-        return suggestionPool
-            .filter(item => !historyText.includes(item.title.toLowerCase()))
+        const scored = suggestionPool
             .map(item => {
+                const alreadyAdded = historyText.includes(item.title.toLowerCase());
                 const matchScore = item.tags.filter(tag => preferenceTags.includes(tag)).length;
                 return {
                     ...item,
+                    alreadyAdded,
                     score: 1 + (matchScore * 4) + Math.random()
                 };
             })
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 4);
+            .sort((a, b) => b.score - a.score);
+
+        const picks = scored.filter(item => !item.alreadyAdded).slice(0, 4);
+        if (picks.length < 4) {
+            picks.push(...scored.filter(item => !picks.some(pick => pick.title === item.title)).slice(0, 4 - picks.length));
+        }
+        return picks;
     }
 
     function renderSuggestions(history = currentPlaylist) {
         const list = elements.converter.suggestions;
         if (!list) return;
 
+        const renderToken = ++suggestionRenderToken;
         const picks = pickSuggestions(history);
         if (elements.converter.suggestionHint) {
             elements.converter.suggestionHint.textContent = history.length ? 'Based on your library' : 'Fresh picks to start';
         }
 
-        list.innerHTML = picks.map(item => `
-            <button class="suggestion-card" type="button" data-query="${escapeHtml(`${item.title} ${item.artist}`)}" aria-label="Add ${escapeHtml(item.title)} by ${escapeHtml(item.artist)}">
-                <span class="suggestion-icon">
+        list.innerHTML = picks.map((item, index) => {
+            const query = `${item.title} ${item.artist}`;
+            const cached = resolvedSuggestionCache.get(query);
+            return `
+            <button class="suggestion-card${cached ? ' is-resolved' : ''}" type="button" data-suggestion-index="${index}" data-query="${escapeHtml(query)}"${cached?.url ? ` data-url="${escapeHtml(cached.url)}"` : ''} aria-label="Add ${escapeHtml(item.title)} by ${escapeHtml(item.artist)}">
+                <span class="suggestion-thumb">
+                    ${cached?.thumbnail ? `<img src="${escapeHtml(cached.thumbnail)}" alt="">` : `
                     <ion-icon name="musical-note"></ion-icon>
+                    `}
                 </span>
                 <span class="suggestion-copy">
                     <strong>${escapeHtml(item.title)}</strong>
                     <small>${escapeHtml(item.artist)}</small>
                 </span>
-                <span class="suggestion-tag">${escapeHtml(item.tag)}</span>
+                <span class="suggestion-meta">
+                    <span class="suggestion-tag">${escapeHtml(item.tag)}</span>
+                    <span class="suggestion-download"><ion-icon name="arrow-down-outline"></ion-icon> Add</span>
+                </span>
             </button>
-        `).join('');
+            `;
+        }).join('');
+
+        hydrateSuggestionCards(picks, renderToken);
+    }
+
+    async function resolveSuggestion(query) {
+        const cached = resolvedSuggestionCache.get(query);
+        if (cached) return cached;
+
+        try {
+            const res = await fetch(`/search?q=${encodeURIComponent(query)}`);
+            if (!res.ok) return null;
+            const data = await res.json();
+            const video = Array.isArray(data) ? data[0] : null;
+            if (!video) return null;
+
+            const resolved = {
+                url: video.url,
+                thumbnail: video.thumbnail || (video.id ? `https://img.youtube.com/vi/${video.id}/hqdefault.jpg` : '')
+            };
+            resolvedSuggestionCache.set(query, resolved);
+            return resolved;
+        } catch {
+            return null;
+        }
+    }
+
+    function applySuggestionResolution(card, resolved) {
+        if (!card || !resolved) return;
+        if (resolved.url) card.dataset.url = resolved.url;
+        card.classList.add('is-resolved');
+
+        const thumb = card.querySelector('.suggestion-thumb');
+        if (thumb && resolved.thumbnail) {
+            thumb.innerHTML = `<img src="${escapeHtml(resolved.thumbnail)}" alt="">`;
+        }
+    }
+
+    async function hydrateSuggestionCards(picks, renderToken) {
+        await Promise.allSettled(picks.map(async (item, index) => {
+            const query = `${item.title} ${item.artist}`;
+            const resolved = await resolveSuggestion(query);
+
+            if (renderToken !== suggestionRenderToken) return;
+            const card = elements.converter.suggestions?.querySelector(`[data-suggestion-index="${index}"]`);
+            applySuggestionResolution(card, resolved);
+        }));
     }
 
     function renderRecentCarousel(history) {
@@ -951,12 +1015,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (elements.converter.suggestions) {
-        elements.converter.suggestions.addEventListener('click', (e) => {
+        elements.converter.suggestions.addEventListener('click', async (e) => {
             const card = e.target.closest('.suggestion-card');
-            if (!card) return;
+            if (!card || card.classList.contains('is-loading')) return;
+
             const query = card.dataset.query || '';
-            if (!query) return;
-            elements.converter.input.value = query;
+            let target = card.dataset.url || '';
+            if (!target && query) {
+                card.classList.add('is-loading');
+                card.setAttribute('aria-busy', 'true');
+                const resolved = await resolveSuggestion(query);
+                applySuggestionResolution(card, resolved);
+                target = resolved?.url || query;
+                card.classList.remove('is-loading');
+                card.removeAttribute('aria-busy');
+            }
+
+            target = target || query;
+            if (!target) return;
+            elements.converter.input.value = target;
             elements.converter.input.focus();
             document.getElementById('searchResults')?.classList.add('hidden');
             if (typeof elements.converter.form.requestSubmit === 'function') elements.converter.form.requestSubmit();

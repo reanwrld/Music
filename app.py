@@ -407,7 +407,7 @@ async def search_youtube(q: str):
             output.append({
                 "id": v_id,
                 "title": entry.get("title") or "Unknown Title",
-                "thumbnail": f"https://i.ytimg.com/vi/{v_id}/mqdefault.jpg",
+                "thumbnail": entry.get("thumbnail") or f"https://i.ytimg.com/vi/{v_id}/hqdefault.jpg",
                 "duration": entry.get("duration_string") or "??:??",
                 "url": f"https://www.youtube.com/watch?v={v_id}"
             })
