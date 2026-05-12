@@ -11,7 +11,7 @@
     <!-- Ionicons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css?v=18">
+    <link rel="stylesheet" href="/static/css/style.css?v=19">
 </head>
 <body>
     <!-- Apple Music Style Login Overlay -->
@@ -195,6 +195,19 @@
                             <ion-icon name="arrow-down-outline"></ion-icon>
                             <span id="btnText">Add</span>
                         </button>
+                    </div>
+
+                    <div class="suggestions-panel" aria-label="Suggested songs">
+                        <div class="suggestions-heading">
+                            <div>
+                                <span>For You</span>
+                                <small id="suggestionHint">Fresh picks to start</small>
+                            </div>
+                            <button id="refreshSuggestionsBtn" class="suggestion-refresh-btn" type="button" aria-label="Refresh suggestions">
+                                <ion-icon name="shuffle-outline"></ion-icon>
+                            </button>
+                        </div>
+                        <div id="suggestionList" class="suggestion-list"></div>
                     </div>
 
                     <div id="progressContainer" class="progress-card hidden">
@@ -416,6 +429,6 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=16"></script>
+    <script src="/static/js/main.js?v=17"></script>
 </body>
 </html>

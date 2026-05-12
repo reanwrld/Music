@@ -60,7 +60,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             progress: document.getElementById('progressContainer'),
             fill: document.getElementById('progressFill'),
             status: document.getElementById('statusText'),
-            percent: document.getElementById('percentText')
+            percent: document.getElementById('percentText'),
+            suggestions: document.getElementById('suggestionList'),
+            suggestionHint: document.getElementById('suggestionHint'),
+            refreshSuggestions: document.getElementById('refreshSuggestionsBtn')
         },
         settings: {
             modal: document.getElementById('settingsModal'),
@@ -110,6 +113,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     const getTrackSubtitle = (track) => `${track.duration || '0:00'} • YouTube`;
     const isAutoplayEnabled = () => localStorage.getItem('autoPlay') !== 'false';
     const isVisible = (el) => Boolean(el && el.getClientRects().length);
+    const suggestionPool = [
+        { title: 'Snooze', artist: 'SZA', tag: 'R&B', tags: ['rnb', 'chill', 'soul', 'pop'] },
+        { title: 'Die For You', artist: 'The Weeknd', tag: 'R&B', tags: ['rnb', 'pop', 'night'] },
+        { title: 'Pink + White', artist: 'Frank Ocean', tag: 'Chill', tags: ['rnb', 'chill', 'soul'] },
+        { title: 'Location', artist: 'Khalid', tag: 'Chill', tags: ['rnb', 'chill', 'pop'] },
+        { title: 'Passionfruit', artist: 'Drake', tag: 'Vibe', tags: ['hiphop', 'rnb', 'chill'] },
+        { title: 'Too Many Nights', artist: 'Metro Boomin', tag: 'Rap', tags: ['hiphop', 'trap', 'night'] },
+        { title: 'LOVE.', artist: 'Kendrick Lamar', tag: 'Rap', tags: ['hiphop', 'rnb', 'chill'] },
+        { title: 'Telekinesis', artist: 'Travis Scott', tag: 'Rap', tags: ['hiphop', 'trap', 'night'] },
+        { title: 'Redbone', artist: 'Childish Gambino', tag: 'Soul', tags: ['soul', 'funk', 'chill'] },
+        { title: 'Good Days', artist: 'SZA', tag: 'Chill', tags: ['rnb', 'soul', 'chill'] },
+        { title: 'Blinding Lights', artist: 'The Weeknd', tag: 'Pop', tags: ['pop', 'dance', 'night'] },
+        { title: 'Levitating', artist: 'Dua Lipa', tag: 'Pop', tags: ['pop', 'dance'] },
+        { title: 'As It Was', artist: 'Harry Styles', tag: 'Pop', tags: ['pop', 'indie'] },
+        { title: 'Bad Habit', artist: 'Steve Lacy', tag: 'Indie', tags: ['indie', 'rnb', 'chill'] },
+        { title: 'Heat Waves', artist: 'Glass Animals', tag: 'Indie', tags: ['indie', 'pop', 'chill'] },
+        { title: 'Electric Feel', artist: 'MGMT', tag: 'Indie', tags: ['indie', 'dance'] },
+        { title: 'Nights', artist: 'Frank Ocean', tag: 'Late Night', tags: ['rnb', 'chill', 'night'] },
+        { title: 'One Dance', artist: 'Drake', tag: 'Afro', tags: ['afrobeats', 'dance', 'hiphop'] },
+        { title: 'Essence', artist: 'Wizkid', tag: 'Afro', tags: ['afrobeats', 'rnb', 'chill'] },
+        { title: 'Last Last', artist: 'Burna Boy', tag: 'Afro', tags: ['afrobeats', 'dance'] },
+        { title: 'Water', artist: 'Tyla', tag: 'Afro Pop', tags: ['afrobeats', 'pop', 'dance'] },
+        { title: 'Get Lucky', artist: 'Daft Punk', tag: 'Dance', tags: ['dance', 'funk', 'pop'] },
+        { title: 'Sweet Disposition', artist: 'The Temper Trap', tag: 'Indie', tags: ['indie', 'chill'] },
+        { title: 'Sunflower', artist: 'Post Malone', tag: 'Easy', tags: ['pop', 'hiphop', 'chill'] }
+    ];
+    const preferenceRules = [
+        { tag: 'hiphop', terms: ['drake', 'travis', 'kendrick', 'future', 'metro', 'carti', 'savage', 'lil', 'rap', 'gunna', 'thug'] },
+        { tag: 'rnb', terms: ['sza', 'weeknd', 'frank ocean', 'khalid', 'brent', 'bryson', 'r&b', 'rnb', 'summer walker'] },
+        { tag: 'afrobeats', terms: ['wizkid', 'burna', 'tyla', 'rema', 'tem', 'afro', 'davido'] },
+        { tag: 'dance', terms: ['dance', 'club', 'dua lipa', 'daft punk', 'house', 'edm', 'party'] },
+        { tag: 'indie', terms: ['indie', 'steve lacy', 'glass animals', 'mgmt', 'tame impala', 'arctic'] },
+        { tag: 'chill', terms: ['chill', 'slow', 'lofi', 'night', 'sad', 'love', 'vibe', 'acoustic'] },
+        { tag: 'pop', terms: ['pop', 'harry styles', 'taylor', 'ariana', 'weeknd', 'post malone'] }
+    ];
 
     function showWelcome(userName = 'there') {
         if (!elements.welcome.overlay) return;
@@ -411,8 +449,65 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function renderDashboard(history) {
+        renderSuggestions(history);
         renderRecentCarousel(history);
         renderDashboardLibrary(history);
+    }
+
+    function inferPreferenceTags(history) {
+        const text = history.map(item => `${item.title || ''} ${item.artist || ''}`).join(' ').toLowerCase();
+        const scores = new Map();
+
+        preferenceRules.forEach(rule => {
+            const hits = rule.terms.filter(term => text.includes(term)).length;
+            if (hits > 0) scores.set(rule.tag, hits);
+        });
+
+        if (scores.size === 0) return ['pop', 'chill', 'rnb'];
+        return [...scores.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 4)
+            .map(([tag]) => tag);
+    }
+
+    function pickSuggestions(history = []) {
+        const preferenceTags = inferPreferenceTags(history);
+        const historyText = history.map(item => item.title || '').join(' ').toLowerCase();
+
+        return suggestionPool
+            .filter(item => !historyText.includes(item.title.toLowerCase()))
+            .map(item => {
+                const matchScore = item.tags.filter(tag => preferenceTags.includes(tag)).length;
+                return {
+                    ...item,
+                    score: 1 + (matchScore * 4) + Math.random()
+                };
+            })
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 4);
+    }
+
+    function renderSuggestions(history = currentPlaylist) {
+        const list = elements.converter.suggestions;
+        if (!list) return;
+
+        const picks = pickSuggestions(history);
+        if (elements.converter.suggestionHint) {
+            elements.converter.suggestionHint.textContent = history.length ? 'Based on your library' : 'Fresh picks to start';
+        }
+
+        list.innerHTML = picks.map(item => `
+            <button class="suggestion-card" type="button" data-query="${escapeHtml(`${item.title} ${item.artist}`)}" aria-label="Add ${escapeHtml(item.title)} by ${escapeHtml(item.artist)}">
+                <span class="suggestion-icon">
+                    <ion-icon name="musical-note"></ion-icon>
+                </span>
+                <span class="suggestion-copy">
+                    <strong>${escapeHtml(item.title)}</strong>
+                    <small>${escapeHtml(item.artist)}</small>
+                </span>
+                <span class="suggestion-tag">${escapeHtml(item.tag)}</span>
+            </button>
+        `).join('');
     }
 
     function renderRecentCarousel(history) {
@@ -848,6 +943,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             playNextTrack();
         });
     });
+
+    if (elements.converter.refreshSuggestions) {
+        elements.converter.refreshSuggestions.addEventListener('click', () => {
+            renderSuggestions(currentPlaylist);
+        });
+    }
+
+    if (elements.converter.suggestions) {
+        elements.converter.suggestions.addEventListener('click', (e) => {
+            const card = e.target.closest('.suggestion-card');
+            if (!card) return;
+            const query = card.dataset.query || '';
+            if (!query) return;
+            elements.converter.input.value = query;
+            elements.converter.input.focus();
+            document.getElementById('searchResults')?.classList.add('hidden');
+            if (typeof elements.converter.form.requestSubmit === 'function') elements.converter.form.requestSubmit();
+            else elements.converter.form.dispatchEvent(new Event('submit', { cancelable: true }));
+        });
+    }
 
     if (elements.player.container) {
         elements.player.container.addEventListener('click', (e) => {
