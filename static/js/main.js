@@ -860,9 +860,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (closeNowPlaying) {
         closeNowPlaying.addEventListener('click', () => {
+            if (largeQueuePanel && !largeQueuePanel.classList.contains('hidden')) {
+                setLargeQueueOpen(false);
+                return;
+            }
             if (nowPlayingOverlay) nowPlayingOverlay.classList.add('hidden');
             setLargeQueueOpen(false);
-            document.body.style.overflow = 'auto';
+            document.body.style.overflow = '';
         });
     }
 

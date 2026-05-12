@@ -1245,21 +1245,20 @@ input:focus {
     grid-template-columns: 44px 1fr 44px;
     align-items: center;
     gap: 12px;
-    color: var(--text-secondary);
-    font-size: 12px;
+    color: var(--text-primary);
+    font-size: 14px;
     font-weight: 850;
-    letter-spacing: 0.08em;
+    letter-spacing: 0;
     text-align: center;
-    text-transform: uppercase;
 }
 
 .overlay-icon-btn {
     width: 44px;
     height: 44px;
-    border-radius: 50%;
-    background: rgba(var(--text-primary-rgb), 0.06);
+    border-radius: 14px;
+    background: rgba(var(--text-primary-rgb), 0.055);
     color: var(--text-primary);
-    font-size: 24px;
+    font-size: 23px;
 }
 
 .overlay-icon-btn:hover {
@@ -1277,7 +1276,7 @@ input:focus {
     border-radius: 24px;
     background: var(--input-bg);
     overflow: hidden;
-    box-shadow: 0 34px 90px rgba(0,0,0,0.18);
+    box-shadow: 0 22px 54px rgba(0,0,0,0.14);
     border: 1px solid rgba(var(--text-primary-rgb), 0.08);
 }
 
@@ -1391,8 +1390,8 @@ input:focus {
     align-items: center;
     gap: 12px;
     padding: 12px 14px;
-    border-radius: 999px;
-    background: rgba(var(--text-primary-rgb), 0.06);
+    border-radius: 16px;
+    background: rgba(var(--text-primary-rgb), 0.045);
     border: 1px solid rgba(var(--text-primary-rgb), 0.08);
 }
 
@@ -2029,7 +2028,7 @@ input[type="range"].is-scrubbing::-moz-range-thumb {
 }
 
 .modal-overlay .large-volume-row input[type="range"].no-thumb {
-    --range-fill: var(--spotify-green);
+    --range-fill: var(--accent-color);
     --range-rest: rgba(var(--text-primary-rgb), 0.14);
     --range-track-height: 4px;
     --range-thumb-size: 0px;
@@ -2045,7 +2044,13 @@ input[type="range"].is-scrubbing::-moz-range-thumb {
 
 .modal-overlay .large-volume-row:hover ion-icon,
 .modal-overlay .large-volume-row:focus-within ion-icon {
-    color: var(--spotify-green);
+    color: var(--accent-color);
+}
+
+.now-playing-overlay .large-seeker input[type="range"],
+.now-playing-overlay .large-volume-row input[type="range"] {
+    --range-fill: var(--accent-color);
+    --range-rest: rgba(var(--text-primary-rgb), 0.14);
 }
 
 /* Artwork Squircle Radius */
@@ -3790,7 +3795,7 @@ input[type="range"].is-scrubbing::-moz-range-thumb {
         width: 100%;
         min-height: 100dvh;
         overflow-y: auto;
-        gap: 18px;
+        gap: 16px;
         padding-inline: 20px;
         animation-duration: 0.28s;
     }
@@ -3802,22 +3807,23 @@ input[type="range"].is-scrubbing::-moz-range-thumb {
     .overlay-icon-btn {
         width: 42px;
         height: 42px;
-        font-size: 23px;
+        border-radius: 13px;
+        font-size: 22px;
     }
 
     .large-artwork {
-        height: min(76vw, 340px);
+        height: min(72vw, 320px);
         aspect-ratio: auto;
-        border-radius: 22px;
-        box-shadow: 0 18px 44px rgba(0,0,0,0.14);
+        border-radius: 20px;
+        box-shadow: 0 16px 36px rgba(0,0,0,0.12);
     }
 
     .now-playing-overlay.is-queue-open .large-artwork {
-        height: min(42vw, 180px);
+        height: min(38vw, 160px);
     }
 
     .now-playing-lower {
-        gap: 18px;
+        gap: 16px;
     }
 
     .large-track-row h1 {
@@ -3847,11 +3853,12 @@ input[type="range"].is-scrubbing::-moz-range-thumb {
 
     .large-volume-row {
         padding: 10px 12px;
+        border-radius: 15px;
     }
 
     .large-queue-panel {
         max-height: 28vh;
-        border-radius: 18px;
+        border-radius: 16px;
     }
 }
 
