@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentPlaylist = [];
     let currentTrackIndex = -1;
     let progressFrame = null;
+    let lastProgressRender = 0;
 
     // --- DOM Selection ---
     const elements = {
@@ -89,6 +90,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const largeCurrentTime = document.getElementById('largeCurrentTime');
     const largeTotalTime = document.getElementById('largeTotalTime');
     const largeQueueMeta = document.getElementById('largeQueueMeta');
+    const largeQueueBtn = document.getElementById('largeQueueBtn');
+    const largeQueuePanel = document.getElementById('largeQueuePanel');
     const nowPlayingBg = document.getElementById('nowPlayingBg');
     const largeArtwork = document.getElementById('largeArtwork');
 
@@ -104,6 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const getThumb = (item) => item.thumbnail || `https://img.youtube.com/vi/${item.id}/hqdefault.jpg`;
     const getTrackSubtitle = (track) => `${track.duration || '0:00'} • YouTube`;
     const isAutoplayEnabled = () => localStorage.getItem('autoPlay') !== 'false';
+    const isVisible = (el) => Boolean(el && el.getClientRects().length);
 
     function showWelcome(userName = 'there') {
         if (!elements.welcome.overlay) return;
@@ -401,6 +405,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         renderDashboard(history);
         renderHistory(history);
+        renderLargeQueue();
     }
 
     function renderDashboard(history) {
@@ -512,6 +517,54 @@ document.addEventListener('DOMContentLoaded', async () => {
         const label = `${current} of ${total}`;
         if (elements.player.queuePosition) elements.player.queuePosition.textContent = label;
         if (largeQueueMeta) largeQueueMeta.textContent = label;
+        renderLargeQueue();
+    }
+
+    function setLargeQueueOpen(isOpen) {
+        if (!largeQueuePanel || !largeQueueBtn || !nowPlayingOverlay) return;
+        largeQueuePanel.classList.toggle('hidden', !isOpen);
+        nowPlayingOverlay.classList.toggle('is-queue-open', isOpen);
+        largeQueueBtn.classList.toggle('is-active', isOpen);
+        largeQueueBtn.setAttribute('aria-expanded', String(isOpen));
+        largeQueueBtn.setAttribute('aria-label', isOpen ? 'Hide queue' : 'Show queue');
+    }
+
+    function renderLargeQueue() {
+        if (!largeQueuePanel) return;
+
+        if (currentPlaylist.length === 0) {
+            largeQueuePanel.innerHTML = `
+                <div class="large-queue-empty">
+                    <ion-icon name="musical-notes-outline"></ion-icon>
+                    <span>No tracks yet</span>
+                </div>
+            `;
+            return;
+        }
+
+        const rows = currentPlaylist.slice(0, 20).map((item, index) => {
+            const isActive = index === currentTrackIndex;
+            return `
+                <button class="large-queue-item${isActive ? ' is-active' : ''}" type="button" data-index="${index}">
+                    <span class="large-queue-art">
+                        <img src="${escapeHtml(getThumb(item))}" alt="">
+                    </span>
+                    <span class="large-queue-copy">
+                        <strong>${escapeHtml(item.title || 'Untitled Track')}</strong>
+                        <small>${escapeHtml(item.duration || '0:00')}</small>
+                    </span>
+                    <ion-icon name="${isActive ? 'volume-high-outline' : 'play-outline'}"></ion-icon>
+                </button>
+            `;
+        }).join('');
+
+        largeQueuePanel.innerHTML = `
+            <div class="large-queue-heading">
+                <span>Up Next</span>
+                <small>${currentPlaylist.length} track${currentPlaylist.length === 1 ? '' : 's'}</small>
+            </div>
+            <div class="large-queue-list">${rows}</div>
+        `;
     }
 
     function updateMiniTitleMotion() {
@@ -687,24 +740,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     function syncPlaybackPosition() {
         const audio = elements.player.audio;
         const time = formatTime(audio.currentTime);
-        if (elements.player.current) elements.player.current.textContent = time;
-        if (largeCurrentTime) largeCurrentTime.textContent = time;
+        if (elements.player.current && elements.player.current.textContent !== time) elements.player.current.textContent = time;
+        if (largeCurrentTime && largeCurrentTime.textContent !== time) largeCurrentTime.textContent = time;
 
         const pct = (audio.currentTime / audio.duration) * 100 || 0;
         [elements.player.seekbar, largeSeekbar].filter(Boolean).forEach(el => {
             el.value = pct;
-            updateSliderTrack(el);
+            if (isVisible(el)) updateSliderTrack(el);
         });
     }
 
     function startProgressLoop() {
         if (progressFrame) return;
-        const tick = () => {
-            syncPlaybackPosition();
+        const tick = (timestamp) => {
+            if (!lastProgressRender || timestamp - lastProgressRender >= 250) {
+                syncPlaybackPosition();
+                lastProgressRender = timestamp;
+            }
             if (!elements.player.audio.paused && !elements.player.audio.ended) {
                 progressFrame = requestAnimationFrame(tick);
             } else {
                 progressFrame = null;
+                lastProgressRender = 0;
             }
         };
         progressFrame = requestAnimationFrame(tick);
@@ -734,7 +791,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     elements.player.audio.addEventListener('timeupdate', () => {
-        syncPlaybackPosition();
+        if (!progressFrame) syncPlaybackPosition();
     });
 
     elements.player.audio.addEventListener('loadedmetadata', () => {
@@ -795,6 +852,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 nowPlayingOverlay.classList.remove('hidden');
                 document.body.style.overflow = 'hidden';
                 syncLargePlayer();
+                syncPlaybackPosition();
+                renderLargeQueue();
             }
         });
     }
@@ -802,7 +861,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (closeNowPlaying) {
         closeNowPlaying.addEventListener('click', () => {
             if (nowPlayingOverlay) nowPlayingOverlay.classList.add('hidden');
+            setLargeQueueOpen(false);
             document.body.style.overflow = 'auto';
+        });
+    }
+
+    if (largeQueueBtn) {
+        largeQueueBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            renderLargeQueue();
+            setLargeQueueOpen(largeQueuePanel ? largeQueuePanel.classList.contains('hidden') : false);
+        });
+    }
+
+    if (largeQueuePanel) {
+        largeQueuePanel.addEventListener('click', (e) => {
+            const row = e.target.closest('.large-queue-item');
+            if (!row) return;
+            const index = Number(row.dataset.index);
+            if (Number.isInteger(index)) playTrack(index);
         });
     }
 
