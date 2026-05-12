@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let progressFrame = null;
     let lastProgressRender = 0;
     let suggestionRenderToken = 0;
+    let queuePointerStart = null;
     const resolvedSuggestionCache = new Map();
 
     // --- DOM Selection ---
@@ -691,6 +692,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         largeQueueBtn.setAttribute('aria-label', isOpen ? 'Hide queue' : 'Show queue');
         if (nowPlayingTitle) nowPlayingTitle.textContent = isOpen ? 'Up Next' : 'Now Playing';
         if (largeQueueIcon) largeQueueIcon.setAttribute('name', isOpen ? 'albums-outline' : 'list-outline');
+        if (isOpen) {
+            requestAnimationFrame(() => {
+                const active = largeQueuePanel.querySelector('.large-queue-item.is-active');
+                active?.scrollIntoView({ block: 'nearest' });
+            });
+        }
     }
 
     function renderLargeQueue() {
@@ -1078,9 +1085,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (largeQueuePanel) {
+        largeQueuePanel.addEventListener('pointerdown', (e) => {
+            queuePointerStart = {
+                y: e.clientY,
+                scrollTop: largeQueuePanel.scrollTop
+            };
+        }, { passive: true });
+
         largeQueuePanel.addEventListener('click', (e) => {
             const row = e.target.closest('.large-queue-item');
             if (!row) return;
+            const scrolled = queuePointerStart
+                ? Math.abs(largeQueuePanel.scrollTop - queuePointerStart.scrollTop) > 6 || Math.abs(e.clientY - queuePointerStart.y) > 8
+                : false;
+            queuePointerStart = null;
+            if (scrolled) return;
             const index = Number(row.dataset.index);
             if (Number.isInteger(index)) playTrack(index);
         });
