@@ -11,7 +11,7 @@
     <!-- Ionicons -->
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
-    <link rel="stylesheet" href="/static/css/style.css?v=25">
+    <link rel="stylesheet" href="/static/css/style.css?v=28">
 </head>
 <body>
     <!-- Apple Music Style Login Overlay -->
@@ -386,10 +386,16 @@
                 <button id="closeNowPlaying" class="overlay-icon-btn" type="button" aria-label="Back">
                     <ion-icon name="arrow-back-outline"></ion-icon>
                 </button>
-                <span id="nowPlayingTitle">Now Playing</span>
+                <div class="now-playing-title-stack">
+                    <span id="nowPlayingMode">Now Playing</span>
+                    <strong id="nowPlayingTitle">Not Playing</strong>
+                </div>
                 <div class="now-playing-actions">
-                    <button id="largeLyricsBtn" class="overlay-icon-btn" type="button" aria-label="Show lyrics" aria-expanded="false">
-                        <ion-icon id="largeLyricsIcon" name="chatbubble-ellipses-outline"></ion-icon>
+                    <button id="largeLyricsBtn" class="overlay-icon-btn lyrics-toggle-btn" type="button" aria-label="Show lyrics" aria-expanded="false">
+                        <span class="lyrics-toggle-glyph" aria-hidden="true">
+                            <ion-icon id="largeLyricsIcon" name="reader-outline"></ion-icon>
+                        </span>
+                        <span class="lyrics-toggle-label">Lyrics</span>
                     </button>
                     <button id="largeQueueBtn" class="overlay-icon-btn" type="button" aria-label="Show queue" aria-expanded="false">
                         <ion-icon id="largeQueueIcon" name="list-outline"></ion-icon>
@@ -439,6 +445,6 @@
         </div>
     </div>
 
-    <script src="/static/js/main.js?v=23"></script>
+    <script src="/static/js/main.js?v=26"></script>
 </body>
 </html>

@@ -14,6 +14,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     let queuePointerStart = null;
     let currentLyrics = [];
     let currentLyricIndex = -1;
+    let lyricsRequestToken = 0;
+    let lyricsLineNodes = [];
+    let lyricsAutoScrollFrame = null;
+    let lyricsUserScrollUntil = 0;
     const resolvedSuggestionCache = new Map();
     const lyricsCache = new Map();
 
@@ -90,6 +94,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Full-screen Player Elements
     const nowPlayingOverlay = document.getElementById('nowPlayingOverlay');
     const closeNowPlaying = document.getElementById('closeNowPlaying');
+    const nowPlayingMode = document.getElementById('nowPlayingMode');
     const nowPlayingTitle = document.getElementById('nowPlayingTitle');
     const largePlayBtn = document.getElementById('largePlayBtn');
     const largePlayIcon = document.getElementById('largePlayIcon');
@@ -139,6 +144,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
     const isAutoplayEnabled = () => localStorage.getItem('autoPlay') !== 'false';
     const isVisible = (el) => Boolean(el && el.getClientRects().length);
+    const getCurrentTrack = () => currentTrackIndex >= 0 ? currentPlaylist[currentTrackIndex] : null;
+    const setPlaybackIcon = (isPlaying) => {
+        if (elements.player.playIcon) elements.player.playIcon.setAttribute('name', isPlaying ? 'pause-sharp' : 'play-sharp');
+        if (largePlayIcon) largePlayIcon.setAttribute('name', isPlaying ? 'pause-sharp' : 'play-sharp');
+    };
+    const getNowPlayingMode = () => {
+        if (nowPlayingOverlay?.classList.contains('is-queue-open')) return 'Up Next';
+        if (nowPlayingOverlay?.classList.contains('is-lyrics-open')) return 'Lyrics';
+        return 'Now Playing';
+    };
+    const setNowPlayingHeader = (mode = getNowPlayingMode()) => {
+        const track = getCurrentTrack();
+        const title = track?.title || 'Not Playing';
+        if (nowPlayingMode) nowPlayingMode.textContent = mode || 'Now Playing';
+        if (nowPlayingTitle) {
+            nowPlayingTitle.textContent = title;
+            nowPlayingTitle.title = title;
+        }
+    };
     const suggestionPool = [
         { title: 'Snooze', artist: 'SZA', tag: 'R&B', tags: ['rnb', 'chill', 'soul', 'pop'] },
         { title: 'Die For You', artist: 'The Weeknd', tag: 'R&B', tags: ['rnb', 'pop', 'night'] },
@@ -713,12 +737,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         largeQueueBtn.classList.toggle('is-active', isOpen);
         largeQueueBtn.setAttribute('aria-expanded', String(isOpen));
         largeQueueBtn.setAttribute('aria-label', isOpen ? 'Hide queue' : 'Show queue');
-        if (nowPlayingTitle) nowPlayingTitle.textContent = isOpen ? 'Up Next' : 'Now Playing';
+        setNowPlayingHeader(isOpen ? 'Up Next' : 'Now Playing');
         if (largeQueueIcon) largeQueueIcon.setAttribute('name', isOpen ? 'albums-outline' : 'list-outline');
         if (isOpen) {
             requestAnimationFrame(() => {
                 const active = largeQueuePanel.querySelector('.large-queue-item.is-active');
-                active?.scrollIntoView({ block: 'nearest' });
+                active?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
             });
         }
     }
@@ -731,11 +755,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         largeLyricsBtn.classList.toggle('is-active', isOpen);
         largeLyricsBtn.setAttribute('aria-expanded', String(isOpen));
         largeLyricsBtn.setAttribute('aria-label', isOpen ? 'Hide lyrics' : 'Show lyrics');
-        if (largeLyricsIcon) largeLyricsIcon.setAttribute('name', isOpen ? 'chatbubble' : 'chatbubble-ellipses-outline');
-        if (nowPlayingTitle) nowPlayingTitle.textContent = isOpen ? 'Lyrics' : 'Now Playing';
+        if (largeLyricsIcon) largeLyricsIcon.setAttribute('name', isOpen ? 'reader' : 'reader-outline');
+        setNowPlayingHeader(isOpen ? 'Lyrics' : 'Now Playing');
 
         if (isOpen) {
-            const track = currentPlaylist[currentTrackIndex];
+            const track = getCurrentTrack();
             loadLyricsForTrack(track);
         }
     }
@@ -780,15 +804,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function renderLyricsShell(state, track, message = '') {
         if (!largeLyricsPanel) return;
-        const title = track?.title || 'Not Playing';
+        const isLoading = state === 'loading';
+        const isInstrumental = state === 'instrumental';
+        currentLyrics = [];
+        currentLyricIndex = -1;
+        lyricsLineNodes = [];
+        if (lyricsAutoScrollFrame) {
+            cancelAnimationFrame(lyricsAutoScrollFrame);
+            lyricsAutoScrollFrame = null;
+        }
+        largeLyricsPanel.scrollTop = 0;
         largeLyricsPanel.innerHTML = `
             <div class="lyrics-panel-header">
                 <span>Lyrics</span>
-                <small>${escapeHtml(title)}</small>
+                <small>${isLoading ? 'Loading synced lines' : escapeHtml(message || 'Synced to this track')}</small>
             </div>
             <div class="lyrics-empty">
-                <ion-icon name="${state === 'loading' ? 'sync-outline' : 'musical-notes-outline'}"></ion-icon>
-                <strong>${state === 'loading' ? 'Finding lyrics...' : 'Lyrics not available'}</strong>
+                <ion-icon name="${isLoading ? 'sync-outline' : 'musical-notes-outline'}"></ion-icon>
+                <strong>${isLoading ? 'Finding lyrics...' : (isInstrumental ? 'Instrumental track' : 'Lyrics not available')}</strong>
                 <span>${escapeHtml(message || 'Try another track or check back later.')}</span>
             </div>
         `;
@@ -814,26 +847,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentLyricIndex = -1;
 
         if (!currentLyrics.length) {
-            renderLyricsShell('missing', track, payload.message);
+            renderLyricsShell(payload.instrumental || payload.status === 'instrumental' ? 'instrumental' : 'missing', track, payload.message);
             return;
         }
 
-        const source = payload.source ? `Synced by ${payload.source}` : 'Lyrics';
+        const source = payload.source ? `${payload.synced ? 'Synced' : 'Lyrics'} by ${payload.source}` : '';
+        const lyricMeta = source || payload.artist || query.artist || 'Synced to this track';
+        if (lyricsAutoScrollFrame) {
+            cancelAnimationFrame(lyricsAutoScrollFrame);
+            lyricsAutoScrollFrame = null;
+        }
         largeLyricsPanel.innerHTML = `
             <div class="lyrics-panel-header">
-                <span>${escapeHtml(payload.track || query.title || 'Lyrics')}</span>
-                <small>${escapeHtml(payload.artist || query.artist || source)}</small>
+                <span>Lyrics</span>
+                <small>${escapeHtml(lyricMeta)}</small>
             </div>
             <div class="lyrics-lines">
                 ${currentLyrics.map((line, index) => `
-                    <div class="lyric-line" data-lyric-index="${index}">${escapeHtml(line.text)}</div>
+                    <div class="lyric-line is-upcoming" data-lyric-index="${index}">${escapeHtml(line.text)}</div>
                 `).join('')}
             </div>
         `;
+        lyricsLineNodes = Array.from(largeLyricsPanel.querySelectorAll('.lyric-line'));
         updateLyricsPosition(true);
     }
 
     async function loadLyricsForTrack(track) {
+        const requestToken = ++lyricsRequestToken;
         if (!track) {
             currentLyrics = [];
             currentLyricIndex = -1;
@@ -844,6 +884,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const query = getLyricsQuery(track);
         const key = `${track.id || track.filename || query.title}|${query.artist}|${query.duration}`;
         if (lyricsCache.has(key)) {
+            if (requestToken !== lyricsRequestToken) return;
             renderLyrics(track, lyricsCache.get(key));
             return;
         }
@@ -858,31 +899,61 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetch(`/lyrics?${params.toString()}`);
             const payload = response.ok ? await response.json() : { status: 'error', lines: [], message: 'Lyrics lookup failed.' };
             lyricsCache.set(key, payload);
+            if (requestToken !== lyricsRequestToken) return;
             renderLyrics(track, payload);
         } catch {
+            if (requestToken !== lyricsRequestToken) return;
             renderLyricsShell('missing', track, 'Lyrics lookup failed.');
         }
     }
 
     function updateLyricsPosition(force = false) {
-        if (!largeLyricsPanel || largeLyricsPanel.classList.contains('hidden') || !currentLyrics.length) return;
+        if (!largeLyricsPanel || largeLyricsPanel.classList.contains('hidden') || !currentLyrics.length || !lyricsLineNodes.length) return;
 
         const now = elements.player.audio.currentTime || 0;
+        let low = 0;
+        let high = currentLyrics.length - 1;
         let activeIndex = 0;
-        for (let i = 0; i < currentLyrics.length; i += 1) {
-            if ((currentLyrics[i].time || 0) <= now + 0.2) activeIndex = i;
-            else break;
+        while (low <= high) {
+            const mid = Math.floor((low + high) / 2);
+            if ((currentLyrics[mid].time || 0) <= now + 0.2) {
+                activeIndex = mid;
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
         }
 
         if (!force && activeIndex === currentLyricIndex) return;
+        const previousIndex = currentLyricIndex;
         currentLyricIndex = activeIndex;
-        const nodes = largeLyricsPanel.querySelectorAll('.lyric-line');
-        nodes.forEach((node, index) => {
+
+        const syncNodeState = (node, index) => {
             node.classList.toggle('is-past', index < activeIndex);
             node.classList.toggle('is-current', index === activeIndex);
             node.classList.toggle('is-upcoming', index > activeIndex);
+        };
+
+        if (force || previousIndex < 0 || Math.abs(activeIndex - previousIndex) > 4) {
+            lyricsLineNodes.forEach(syncNodeState);
+        } else {
+            const start = Math.max(0, Math.min(previousIndex, activeIndex) - 1);
+            const end = Math.min(lyricsLineNodes.length - 1, Math.max(previousIndex, activeIndex) + 1);
+            for (let index = start; index <= end; index += 1) {
+                syncNodeState(lyricsLineNodes[index], index);
+            }
+        }
+
+        if (!force && performance.now() < lyricsUserScrollUntil) return;
+        if (lyricsAutoScrollFrame) cancelAnimationFrame(lyricsAutoScrollFrame);
+        lyricsAutoScrollFrame = requestAnimationFrame(() => {
+            lyricsAutoScrollFrame = null;
+            const node = lyricsLineNodes[activeIndex];
+            if (!node) return;
+            const target = Math.max(0, node.offsetTop - ((largeLyricsPanel.clientHeight - node.offsetHeight) / 2));
+            if (!force && Math.abs(largeLyricsPanel.scrollTop - target) < 28) return;
+            largeLyricsPanel.scrollTo({ top: target, behavior: 'auto' });
         });
-        nodes[activeIndex]?.scrollIntoView({ block: 'center', behavior: force ? 'auto' : 'smooth' });
     }
 
     function updateMiniTitleMotion() {
@@ -929,6 +1000,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (elements.player.artist) elements.player.artist.textContent = 'Choose a track';
         if (largeTrackTitle) largeTrackTitle.textContent = 'Not Playing';
         if (largeArtistName) largeArtistName.textContent = 'Choose a track';
+        setNowPlayingHeader('Now Playing');
         if (elements.player.current) elements.player.current.textContent = '0:00';
         if (elements.player.total) elements.player.total.textContent = '0:00';
         if (largeCurrentTime) largeCurrentTime.textContent = '0:00';
@@ -960,6 +1032,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (elements.player.artist) elements.player.artist.textContent = subtitle;
         if (largeTrackTitle) largeTrackTitle.textContent = title;
         if (largeArtistName) largeArtistName.textContent = subtitle;
+        setNowPlayingHeader();
         updateQueuePosition();
         updateMiniTitleMotion();
         setArtwork(document.getElementById('playerArtwork'), track, '12px');
@@ -985,9 +1058,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             showToast('Track file is not available.');
             return;
         }
-        elements.player.audio.src = `/stream/${encodeURIComponent(track.filename)}`;
-        elements.player.audio.play().catch(() => showToast('Unable to play this track.'));
         syncLargePlayer(track);
+        elements.player.audio.src = `/stream/${encodeURIComponent(track.filename)}`;
+        setPlaybackIcon(true);
+        elements.player.audio.play().catch(() => {
+            setPlaybackIcon(false);
+            showToast('Unable to play this track.');
+        });
         elements.player.container.classList.add('active');
     }
 
@@ -1016,8 +1093,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         if (elements.player.audio.paused) {
-            elements.player.audio.play().catch(() => showToast('Unable to play this track.'));
+            setPlaybackIcon(true);
+            elements.player.audio.play().catch(() => {
+                setPlaybackIcon(false);
+                showToast('Unable to play this track.');
+            });
         } else {
+            setPlaybackIcon(false);
             elements.player.audio.pause();
         }
     }
@@ -1041,14 +1123,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     elements.player.audio.addEventListener('play', () => {
-        if (elements.player.playIcon) elements.player.playIcon.setAttribute('name', 'pause-sharp');
-        if (largePlayIcon) largePlayIcon.setAttribute('name', 'pause-sharp');
+        setPlaybackIcon(true);
         startProgressLoop();
     });
 
     elements.player.audio.addEventListener('pause', () => {
-        if (elements.player.playIcon) elements.player.playIcon.setAttribute('name', 'play-sharp');
-        if (largePlayIcon) largePlayIcon.setAttribute('name', 'play-sharp');
+        setPlaybackIcon(false);
         stopProgressLoop();
     });
 
@@ -1250,6 +1330,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.stopPropagation();
             setLargeLyricsOpen(largeLyricsPanel ? largeLyricsPanel.classList.contains('hidden') : false);
         });
+    }
+
+    if (largeLyricsPanel) {
+        const pauseLyricsAutoScroll = () => {
+            lyricsUserScrollUntil = performance.now() + 1400;
+        };
+        largeLyricsPanel.addEventListener('wheel', pauseLyricsAutoScroll, { passive: true });
+        largeLyricsPanel.addEventListener('touchstart', pauseLyricsAutoScroll, { passive: true });
+        largeLyricsPanel.addEventListener('pointerdown', pauseLyricsAutoScroll, { passive: true });
     }
 
     if (largeQueuePanel) {

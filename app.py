@@ -12,8 +12,11 @@ import os
 import shutil
 import json
 import re
+import html
+import ssl
 import urllib.parse
 import urllib.request
+import certifi
 from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -34,6 +37,22 @@ HISTORY_FILE = "history.json"
 AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 180
 LYRICS_CACHE = {}
 LRC_TIMESTAMP_RE = re.compile(r"\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]")
+LYRICS_MAX_LINES = 320
+LYRICS_SEARCH_TIMEOUT = 6
+LYRICS_MAX_SEARCHES = 12
+LYRICS_BRACKET_NOISE_RE = re.compile(
+    r"[\(\[][^\)\]]*(official|music video|video|audio|lyrics?|lyric|visualizer|clean|explicit|"
+    r"sped up|slowed|remix|remaster(?:ed)?|karaoke)[^\)\]]*[\)\]]",
+    re.I,
+)
+LYRICS_FEATURE_BRACKET_RE = re.compile(r"[\(\[][^\)\]]*(feat\.?|ft\.?|featuring|with)[^\)\]]*[\)\]]", re.I)
+LYRICS_FEATURE_SUFFIX_RE = re.compile(r"\s+(?:feat\.?|ft\.?|featuring|with)\s+.+$", re.I)
+LYRICS_TRAILING_NOISE_RE = re.compile(
+    r"\s+(?:official\s+)?(?:music\s+)?(?:video|audio|visualizer|lyrics?|lyric)$",
+    re.I,
+)
+LYRICS_SPLIT_RE = re.compile(r"\s[-–—]\s|\s\|\s")
+LRCLIB_SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
 
 def set_auth_cookie(response: Response, value: str):
     response.set_cookie(
@@ -327,20 +346,174 @@ def download_video(url, output_path, user_email, quality="320", audio_format="mp
         current_progress['status'] = 'error'
         current_progress['message'] = f"Error: {str(e)}"
 
+def tidy_lyrics_text(value):
+    return re.sub(r"\s+", " ", html.unescape(str(value or ""))).strip()
+
+def clean_title_text(title):
+    title = tidy_lyrics_text(title)
+    title = LYRICS_BRACKET_NOISE_RE.sub("", title)
+    title = LYRICS_FEATURE_BRACKET_RE.sub("", title)
+    title = re.sub(r"\s+\|\s+.*\b(official|video|audio|lyrics?|lyric|visualizer)\b.*$", "", title, flags=re.I)
+    title = LYRICS_TRAILING_NOISE_RE.sub("", title)
+    title = LYRICS_FEATURE_SUFFIX_RE.sub("", title)
+    title = re.sub(r"\s+", " ", title).strip(" -–—|")
+    return title
+
+def clean_artist_name(artist):
+    artist = tidy_lyrics_text(artist)
+    artist = re.sub(r"[\(\[][^\)\]]*(official|topic|channel)[^\)\]]*[\)\]]", "", artist, flags=re.I)
+    artist = re.sub(r"\s*[-–—]?\s*topic$", "", artist, flags=re.I)
+    artist = re.sub(r"\s*(?:vevo|official)$", "", artist, flags=re.I)
+    artist = re.sub(r"\s+(?:lyrics?|records?|recordings?|entertainment|media|channel)$", "", artist, flags=re.I)
+    artist = LYRICS_FEATURE_SUFFIX_RE.sub("", artist)
+    artist = re.sub(r"\s+", " ", artist).strip(" -–—|")
+    return artist
+
+def split_artist_title(title):
+    parts = LYRICS_SPLIT_RE.split(tidy_lyrics_text(title), maxsplit=1)
+    if len(parts) != 2:
+        return None
+    left, right = clean_title_text(parts[0]), clean_title_text(parts[1])
+    if not left or not right:
+        return None
+    return left, right
+
+def normalize_lyrics_match(value):
+    value = clean_title_text(value).lower()
+    value = value.replace("&", " and ")
+    value = re.sub(r"['’`]", "", value)
+    value = re.sub(r"[^a-z0-9]+", " ", value)
+    return re.sub(r"\s+", " ", value).strip()
+
 def clean_lyrics_query(title, artist=""):
-    title = (title or "").strip()
-    artist = (artist or "").strip()
-    title = re.sub(r"\s+", " ", title)
-    artist = re.sub(r"\s+", " ", artist)
+    title = tidy_lyrics_text(title)
+    artist = clean_artist_name(artist)
+    split = split_artist_title(title)
 
-    if not artist:
-        parts = re.split(r"\s[-–—]\s", title, maxsplit=1)
-        if len(parts) == 2:
-            artist, title = parts[0].strip(), parts[1].strip()
+    if split:
+        left, right = split
+        normalized_artist = normalize_lyrics_match(artist)
+        normalized_left = normalize_lyrics_match(left)
+        normalized_right = normalize_lyrics_match(right)
 
-    title = re.sub(r"[\(\[][^\)\]]*(official|video|audio|lyrics|lyric|visualizer|clean|explicit|sped up|slowed|remix)[^\)\]]*[\)\]]", "", title, flags=re.I)
-    title = re.sub(r"\s+", " ", title).strip(" -–—")
-    return title, artist
+        if not artist or (normalized_artist and normalized_left and normalized_left in normalized_artist):
+            artist, title = left, right
+        elif normalized_artist and normalized_right and normalized_right in normalized_artist:
+            artist, title = right, left
+
+    return clean_title_text(title), clean_artist_name(artist)
+
+def unique_lyrics_values(values):
+    unique = []
+    seen = set()
+    for value in values:
+        value = tidy_lyrics_text(value)
+        key = normalize_lyrics_match(value)
+        if value and key not in seen:
+            unique.append(value)
+            seen.add(key)
+    return unique
+
+def add_lyrics_search_candidate(candidates, seen, params):
+    clean_params = {}
+    for key, value in params.items():
+        if value in (None, ""):
+            continue
+        clean_params[key] = str(value)
+
+    if not (clean_params.get("track_name") or clean_params.get("query")):
+        return
+
+    signature = tuple(sorted(clean_params.items()))
+    if signature in seen or len(candidates) >= LYRICS_MAX_SEARCHES:
+        return
+
+    seen.add(signature)
+    candidates.append(clean_params)
+
+def build_lyrics_search_candidates(title, artist="", duration=None):
+    clean_title, clean_artist = clean_lyrics_query(title, artist)
+    raw_title = tidy_lyrics_text(title)
+    raw_artist = clean_artist_name(artist)
+    pairs = []
+
+    def add_pair(track_name, artist_name=""):
+        track_name = clean_title_text(track_name)
+        artist_name = clean_artist_name(artist_name)
+        if track_name and (track_name, artist_name) not in pairs:
+            pairs.append((track_name, artist_name))
+
+    split = split_artist_title(raw_title)
+    if split:
+        left, right = split
+        add_pair(right, left)
+        add_pair(left, right)
+    add_pair(clean_title, clean_artist)
+    if raw_artist:
+        add_pair(clean_title, raw_artist)
+
+    candidates = []
+    seen = set()
+    try:
+        duration_value = int(float(duration)) if duration else None
+    except (TypeError, ValueError):
+        duration_value = None
+
+    for track_name, artist_name in pairs:
+        title_variants = unique_lyrics_values([
+            track_name,
+            LYRICS_FEATURE_SUFFIX_RE.sub("", track_name),
+            LYRICS_FEATURE_BRACKET_RE.sub("", track_name),
+        ])
+        artist_variants = unique_lyrics_values([
+            artist_name,
+            LYRICS_FEATURE_SUFFIX_RE.sub("", artist_name),
+        ]) or [""]
+
+        for title_variant in title_variants:
+            for artist_variant in artist_variants:
+                if artist_variant:
+                    add_lyrics_search_candidate(candidates, seen, {
+                        "track_name": title_variant,
+                        "artist_name": artist_variant,
+                        "duration": duration_value,
+                    })
+                    add_lyrics_search_candidate(candidates, seen, {
+                        "track_name": title_variant,
+                        "artist_name": artist_variant,
+                    })
+                    add_lyrics_search_candidate(candidates, seen, {
+                        "query": f"{artist_variant} {title_variant}",
+                    })
+
+                add_lyrics_search_candidate(candidates, seen, {
+                    "track_name": title_variant,
+                    "duration": duration_value,
+                })
+                add_lyrics_search_candidate(candidates, seen, {
+                    "track_name": title_variant,
+                })
+
+    return candidates
+
+def build_lyrics_score_targets(title, artist=""):
+    clean_title, clean_artist = clean_lyrics_query(title, artist)
+    targets = []
+
+    def add_target(track_name, artist_name=""):
+        track_name = clean_title_text(track_name)
+        artist_name = clean_artist_name(artist_name)
+        signature = (normalize_lyrics_match(track_name), normalize_lyrics_match(artist_name))
+        if track_name and signature not in [(normalize_lyrics_match(t), normalize_lyrics_match(a)) for t, a in targets]:
+            targets.append((track_name, artist_name))
+
+    add_target(clean_title, clean_artist)
+    split = split_artist_title(title)
+    if split:
+        left, right = split
+        add_target(right, left)
+        add_target(left, right)
+    return targets
 
 def parse_synced_lyrics(lrc_text):
     lines = []
@@ -364,6 +537,122 @@ def parse_plain_lyrics(plain_text):
         if line.strip()
     ]
 
+def lyrics_result_identity(item):
+    if item.get("id") is not None:
+        return f"id:{item.get('id')}"
+    return "|".join([
+        normalize_lyrics_match(item.get("trackName") or item.get("name") or ""),
+        normalize_lyrics_match(item.get("artistName") or ""),
+        str(item.get("duration") or ""),
+    ])
+
+def lyric_lines_for_result(item):
+    synced_lines = parse_synced_lyrics(item.get("syncedLyrics"))
+    if synced_lines:
+        return True, synced_lines
+    return False, parse_plain_lyrics(item.get("plainLyrics"))
+
+def token_overlap_score(left, right):
+    left_tokens = set(normalize_lyrics_match(left).split())
+    right_tokens = set(normalize_lyrics_match(right).split())
+    if not left_tokens or not right_tokens:
+        return 0
+    return len(left_tokens & right_tokens) / max(len(left_tokens), len(right_tokens))
+
+def score_lyrics_result(item, target_title, target_artist="", duration=None):
+    result_title = item.get("trackName") or item.get("name") or ""
+    result_artist = item.get("artistName") or ""
+    title_norm = normalize_lyrics_match(target_title)
+    result_title_norm = normalize_lyrics_match(result_title)
+    artist_norm = normalize_lyrics_match(target_artist)
+    result_artist_norm = normalize_lyrics_match(result_artist)
+    score = 0
+
+    if title_norm and result_title_norm:
+        if title_norm == result_title_norm:
+            score += 75
+        elif title_norm in result_title_norm or result_title_norm in title_norm:
+            score += 52
+        else:
+            score += token_overlap_score(target_title, result_title) * 45
+
+    if artist_norm and result_artist_norm:
+        if artist_norm == result_artist_norm:
+            score += 30
+        elif artist_norm in result_artist_norm or result_artist_norm in artist_norm:
+            score += 18
+        else:
+            score += token_overlap_score(target_artist, result_artist) * 20
+
+    if item.get("syncedLyrics"):
+        score += 8
+    elif item.get("plainLyrics"):
+        score += 5
+
+    try:
+        result_duration = int(float(item.get("duration") or 0))
+        target_duration = int(float(duration or 0))
+    except (TypeError, ValueError):
+        result_duration = 0
+        target_duration = 0
+
+    if result_duration and target_duration:
+        difference = abs(result_duration - target_duration)
+        if difference <= 2:
+            score += 15
+        elif difference <= 6:
+            score += 10
+        elif difference <= 12:
+            score += 5
+        elif difference > 35:
+            score -= 8
+
+    version_terms = ("live", "remix", "karaoke", "instrumental", "sped", "slowed", "cover")
+    target_version_text = normalize_lyrics_match(target_title)
+    result_version_text = normalize_lyrics_match(result_title)
+    for term in version_terms:
+        if term in result_version_text and term not in target_version_text:
+            score -= 10
+
+    return score
+
+def pick_lyrics_result(results, target_title, target_artist="", duration=None, require_lyrics=True, score_targets=None):
+    score_targets = score_targets or [(target_title, target_artist)]
+    best = None
+    best_score = -1
+    for item in results:
+        if not isinstance(item, dict):
+            continue
+        if require_lyrics:
+            _, lines = lyric_lines_for_result(item)
+            if not lines:
+                continue
+        score = max(score_lyrics_result(item, title, artist, duration) for title, artist in score_targets)
+        if score > best_score:
+            best = item
+            best_score = score
+    return best, best_score
+
+def request_lrclib_search(params):
+    url = "https://lrclib.net/api/search?" + urllib.parse.urlencode(params)
+    request = urllib.request.Request(url, headers={"User-Agent": "MusicWorld/1.0"})
+    with urllib.request.urlopen(request, timeout=LYRICS_SEARCH_TIMEOUT, context=LRCLIB_SSL_CONTEXT) as response:
+        results = json.loads(response.read().decode("utf-8"))
+    return results if isinstance(results, list) else []
+
+def build_lyrics_payload_from_result(best, clean_title, clean_artist):
+    synced, lines = lyric_lines_for_result(best)
+    return {
+        "status": "ok" if lines else "missing",
+        "synced": synced,
+        "instrumental": bool(best.get("instrumental")),
+        "track": best.get("trackName") or best.get("name") or clean_title,
+        "artist": best.get("artistName") or clean_artist,
+        "source": "LRCLIB",
+        "lines": lines[:LYRICS_MAX_LINES],
+        "message": "Lyrics loaded." if lines else "Lyrics not found for this song."
+    }
+
 def fetch_lyrics_payload(title, artist="", duration=None):
     clean_title, clean_artist = clean_lyrics_query(title, artist)
     if not clean_title:
@@ -373,44 +662,62 @@ def fetch_lyrics_payload(title, artist="", duration=None):
     if cache_key in LYRICS_CACHE:
         return LYRICS_CACHE[cache_key]
 
-    params = {"track_name": clean_title}
-    if clean_artist:
-        params["artist_name"] = clean_artist
-    if duration:
-        params["duration"] = str(duration)
+    candidates = build_lyrics_search_candidates(title, artist, duration)
+    score_targets = build_lyrics_score_targets(title, artist)
+    results = []
+    seen_results = set()
+    last_error = None
 
-    url = "https://lrclib.net/api/search?" + urllib.parse.urlencode(params)
-    request = urllib.request.Request(url, headers={"User-Agent": "MusicWorld/1.0"})
+    for params in candidates:
+        try:
+            search_results = request_lrclib_search(params)
+        except Exception as exc:
+            last_error = exc
+            continue
 
-    try:
-        with urllib.request.urlopen(request, timeout=8) as response:
-            results = json.loads(response.read().decode("utf-8"))
-    except Exception as exc:
-        return {"status": "error", "lines": [], "message": f"Lyrics lookup failed: {exc}"}
+        for item in search_results:
+            identity = lyrics_result_identity(item) if isinstance(item, dict) else None
+            if identity and identity not in seen_results:
+                seen_results.add(identity)
+                results.append(item)
 
-    if not isinstance(results, list) or not results:
+        best, score = pick_lyrics_result(results, clean_title, clean_artist, duration, score_targets=score_targets)
+        if best and score >= 95 and best.get("syncedLyrics"):
+            break
+
+    if not results and last_error:
+        return {"status": "error", "lines": [], "message": f"Lyrics lookup failed: {last_error}"}
+
+    if not results:
         payload = {"status": "missing", "lines": [], "message": "Lyrics not found for this song."}
         LYRICS_CACHE[cache_key] = payload
         return payload
 
-    best = next((item for item in results if item.get("syncedLyrics")), None) or next((item for item in results if item.get("plainLyrics")), None)
+    best, best_score = pick_lyrics_result(results, clean_title, clean_artist, duration, score_targets=score_targets)
     if not best:
+        instrumental, instrumental_score = pick_lyrics_result(results, clean_title, clean_artist, duration, require_lyrics=False, score_targets=score_targets)
+        if instrumental and instrumental.get("instrumental") and instrumental_score >= 45:
+            payload = {
+                "status": "instrumental",
+                "synced": False,
+                "instrumental": True,
+                "track": instrumental.get("trackName") or clean_title,
+                "artist": instrumental.get("artistName") or clean_artist,
+                "source": "LRCLIB",
+                "lines": [],
+                "message": "This track is marked as instrumental."
+            }
+        else:
+            payload = {"status": "missing", "lines": [], "message": "Lyrics not found for this song."}
+        LYRICS_CACHE[cache_key] = payload
+        return payload
+
+    if best_score < 35:
         payload = {"status": "missing", "lines": [], "message": "Lyrics not found for this song."}
         LYRICS_CACHE[cache_key] = payload
         return payload
 
-    synced = bool(best.get("syncedLyrics"))
-    lines = parse_synced_lyrics(best.get("syncedLyrics")) if synced else parse_plain_lyrics(best.get("plainLyrics"))
-    payload = {
-        "status": "ok" if lines else "missing",
-        "synced": synced,
-        "instrumental": bool(best.get("instrumental")),
-        "track": best.get("trackName") or clean_title,
-        "artist": best.get("artistName") or clean_artist,
-        "source": "LRCLIB",
-        "lines": lines[:160],
-        "message": "Lyrics loaded." if lines else "Lyrics not found for this song."
-    }
+    payload = build_lyrics_payload_from_result(best, clean_title, clean_artist)
     LYRICS_CACHE[cache_key] = payload
     return payload
 
