@@ -302,7 +302,9 @@ def download_video(url, output_path, user_email, quality="320", audio_format="mp
         'progress_hooks': [progress_hook]
     }
     
-    if os.path.exists('cookies.txt'):
+    if os.path.exists('/etc/secrets/cookies.txt'):
+        ydl_opts['cookiefile'] = '/etc/secrets/cookies.txt'
+    elif os.path.exists('cookies.txt'):
         ydl_opts['cookiefile'] = 'cookies.txt'
     else:
         # Fallback for local testing on Mac to bypass bot protection without a file
@@ -783,7 +785,9 @@ async def search_youtube(q: str):
         'skip_download': True,
     }
     
-    if os.path.exists('cookies.txt'):
+    if os.path.exists('/etc/secrets/cookies.txt'):
+        ydl_opts['cookiefile'] = '/etc/secrets/cookies.txt'
+    elif os.path.exists('cookies.txt'):
         ydl_opts['cookiefile'] = 'cookies.txt'
     else:
         ydl_opts['cookiesfrombrowser'] = ('chrome',)
