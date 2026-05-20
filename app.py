@@ -304,6 +304,9 @@ def download_video(url, output_path, user_email, quality="320", audio_format="mp
     
     if os.path.exists('cookies.txt'):
         ydl_opts['cookiefile'] = 'cookies.txt'
+    else:
+        # Fallback for local testing on Mac to bypass bot protection without a file
+        ydl_opts['cookiesfrombrowser'] = ('chrome',)
     
     if os.path.exists(ffmpeg_bin):
         ydl_opts['ffmpeg_location'] = ffmpeg_bin
@@ -782,6 +785,8 @@ async def search_youtube(q: str):
     
     if os.path.exists('cookies.txt'):
         ydl_opts['cookiefile'] = 'cookies.txt'
+    else:
+        ydl_opts['cookiesfrombrowser'] = ('chrome',)
     
     try:
         def _fetch():
