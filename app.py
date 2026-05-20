@@ -303,7 +303,8 @@ def download_video(url, output_path, user_email, quality="320", audio_format="mp
     }
     
     if os.path.exists('/etc/secrets/cookies.txt'):
-        ydl_opts['cookiefile'] = '/etc/secrets/cookies.txt'
+        shutil.copyfile('/etc/secrets/cookies.txt', '/tmp/cookies.txt')
+        ydl_opts['cookiefile'] = '/tmp/cookies.txt'
     elif os.path.exists('cookies.txt'):
         ydl_opts['cookiefile'] = 'cookies.txt'
     else:
@@ -786,7 +787,8 @@ async def search_youtube(q: str):
     }
     
     if os.path.exists('/etc/secrets/cookies.txt'):
-        ydl_opts['cookiefile'] = '/etc/secrets/cookies.txt'
+        shutil.copyfile('/etc/secrets/cookies.txt', '/tmp/cookies.txt')
+        ydl_opts['cookiefile'] = '/tmp/cookies.txt'
     elif os.path.exists('cookies.txt'):
         ydl_opts['cookiefile'] = 'cookies.txt'
     else:
