@@ -302,10 +302,13 @@ def download_video(url, output_path, user_email, quality="320", audio_format="mp
         'progress_hooks': [progress_hook],
         'extractor_args': {
             'youtube': {
-                'player_client': ['android']
+                'player_client': ['android', 'web']
             }
         }
     }
+    
+    if os.path.exists('cookies.txt'):
+        ydl_opts['cookiefile'] = 'cookies.txt'
     
     if os.path.exists(ffmpeg_bin):
         ydl_opts['ffmpeg_location'] = ffmpeg_bin
@@ -781,6 +784,9 @@ async def search_youtube(q: str):
         'extract_flat': True,
         'skip_download': True,
     }
+    
+    if os.path.exists('cookies.txt'):
+        ydl_opts['cookiefile'] = 'cookies.txt'
     
     try:
         def _fetch():
