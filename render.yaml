@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: mp3-converter
+    env: docker
+    plan: free
+    region: ohio
+    healthCheckPath: /
+    envVars:
+      - key: PORT
+        value: 8000
