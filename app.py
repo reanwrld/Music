@@ -299,12 +299,7 @@ def download_video(url, output_path, user_email, quality="320", audio_format="mp
                 'add_metadata': True,
             }
         ],
-        'progress_hooks': [progress_hook],
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['android', 'web']
-            }
-        }
+        'progress_hooks': [progress_hook]
     }
     
     if os.path.exists('cookies.txt'):
